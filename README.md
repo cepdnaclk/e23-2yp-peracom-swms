@@ -1,57 +1,38 @@
 ___
-# DELETE THIS INSTRUCTIONS AND ADD AN INTRODUCTION ABOUT YOUR PROJECT
-___
 
-# eYY-co2060-project-template
+Student Welfare & Scholarship Management System
+Introduction
 
-This is a sample repository you can use for your Software Systems Design Project. Once you followed these instructions, remove the text and add a brief introduction to here.
+This project presents a web-based system designed to manage student welfare and scholarship activities within a department. It aims to replace manual, time-consuming processes with an efficient digital platform that supports students, donors, and administrative staff.
 
-### Enable GitHub Pages
+Objectives
 
-You can put the things to be shown in GitHub pages into the _docs/_ folder. Both html and md file formats are supported. You need to go to settings and enable GitHub pages and select _main_ branch and _docs_ folder from the dropdowns, as shown in the below image.
+Provide an online scholarship application system for students
 
-![image](https://user-images.githubusercontent.com/11540782/98789936-028d3600-2429-11eb-84be-aaba665fdc75.png)
+Enable donor registration and scholarship contributions
 
-### Special Configurations
+Support document submission and administrative verification
 
-These projects will be automatically added into [https://projects.ce.pdn.ac.lk](). If you like to show more details about your project on this site, you can fill the parameters in the file, _/docs/index.json_
+Improve communication through notifications and reminders
 
-```
-{
-  "title": "This is the title of the project",
-  "team": [
-    {
-      "name": "Team Member Name 1",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    },
-    {
-      "name": "Team Member Name 2",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    },
-    {
-      "name": "Team Member Name 3",
-      "email": "email@eng.pdn.ac.lk",
-      "eNumber": "E/yy/xxx"
-    }
-  ],
-  "supervisors": [
-    {
-      "name": "Dr. Supervisor 1",
-      "email": "email@eng.pdn.ac.lk"
-    },
-    {
-      "name": "Supervisor 2",
-      "email": "email@eng.pdn.ac.lk"
-    }
-  ],
-  "tags": ["Web", "Software Systems", "CO2060"]
-}
-```
+System Users
 
-Once you filled this _index.json_ file, please verify the syntax is correct. (You can use [this](https://jsonlint.com/) tool).
+Students: Apply for scholarships and submit required documents and updates
 
-### Page Theme
+Donors: Register, contribute to scholarships, and receive updates
 
-A custom theme integrated with this GitHub Page, which is based on [github.com/cepdnaclk/eYY-project-theme](https://github.com/cepdnaclk/eYY-project-theme). If you like to remove this default theme, you can remove the file, _docs/\_config.yml_ and use HTML based website.
+Administrators: Manage applications, validate documents, and oversee the process
+
+Key Features
+
+Scholarship application and management
+
+Document upload and verification
+
+Email/SMS notifications and reminders
+
+Issue reporting and announcements
+
+Design Approach
+
+The system follows a modular design to allow future enhancements after further requirement analysis.
