@@ -1,0 +1,51 @@
+.page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; background: var(--bg); padding: 2.5rem 1rem 0; }
+.top { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+.logoBox { width: 56px; height: 56px; background: var(--navy); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; }
+.logoText { display: flex; flex-direction: column; }
+.logoSub { font-size: 0.7rem; color: var(--text-muted); }
+.logoMain { font-size: 1.15rem; font-weight: 700; color: var(--navy); }
+.sysTitle { font-size: 1.1rem; color: var(--text); margin-bottom: 1.75rem; text-align: center; font-family: 'DM Sans', sans-serif; font-weight: 600; }
+
+.card {
+  background: white; border-radius: var(--radius-lg);
+  padding: 2rem 2.25rem;
+  width: 100%; max-width: 560px;
+  box-shadow: var(--shadow-md); border: 1px solid var(--border);
+  margin-bottom: 2rem;
+  animation: fadeUp 0.35s ease forwards;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);} }
+.cardTitle { font-size: 1.3rem; color: var(--text); margin-bottom: 0.1rem; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0 1.5rem; }
+.errorBox { background: var(--danger-light); color: var(--danger); border: 1px solid #ffcdd2; border-radius: var(--radius); padding: 0.65rem 1rem; font-size: 0.875rem; margin-bottom: 1rem; }
+.form { display: flex; flex-direction: column; gap: 1.1rem; }
+.field { display: flex; flex-direction: column; gap: 0.35rem; }
+.labelRow { display: flex; justify-content: space-between; align-items: center; }
+.field label { font-size: 0.875rem; font-weight: 600; color: var(--text-2); }
+.forgot { font-size: 0.8rem; color: var(--navy-light); }
+.forgot:hover { text-decoration: underline; }
+.inputWrap {
+  display: flex; align-items: center;
+  border: 1.5px solid var(--border); border-radius: var(--radius);
+  background: var(--bg); overflow: hidden; transition: border-color 0.2s;
+}
+.inputWrap:focus-within { border-color: var(--navy); background: white; }
+.inputIcon { padding: 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); flex-shrink: 0; }
+.inputWrap input {
+  flex: 1; padding: 0.75rem 0.5rem; border: none; outline: none;
+  font-size: 0.9rem; background: transparent; color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+}
+.eyeBtn { background: none; border: none; cursor: pointer; padding: 0 0.75rem; font-size: 0.85rem; color: var(--text-muted); }
+.submitBtn {
+  padding: 0.85rem; background: var(--navy); color: white;
+  border: none; border-radius: var(--radius);
+  font-size: 0.95rem; font-weight: 700; cursor: pointer;
+  transition: background 0.2s; margin-top: 0.25rem;
+  font-family: 'DM Sans', sans-serif;
+}
+.submitBtn:hover:not(:disabled) { background: var(--navy-light); }
+.submitBtn:disabled { opacity: 0.65; cursor: not-allowed; }
+.registerLink { margin-top: 1.25rem; text-align: center; font-size: 0.875rem; color: var(--text-muted); }
+.registerLink a { color: var(--navy-light); font-weight: 600; }
+.registerLink a:hover { text-decoration: underline; }

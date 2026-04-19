@@ -1,0 +1,274 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #f6f7fb 0%, #edf1f9 100%);
+  padding: 1.5rem;
+  color: #1f2a44;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.78rem;
+  color: #3b6cca;
+  margin: 0 0 0.25rem;
+}
+
+.sub {
+  margin: 0.35rem 0 0;
+  color: #5f6f89;
+}
+
+.headerActions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.adminEmail {
+  background: #dbe6ff;
+  color: #1a3c8e;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+.secondaryBtn {
+  border: 1px solid #c8d4ef;
+  background: #ffffff;
+  color: #23365b;
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+
+.secondaryBtn:hover {
+  background: #f2f6ff;
+}
+
+.errorBox {
+  border: 1px solid #f3a5a5;
+  background: #fff1f1;
+  color: #a71d2a;
+  border-radius: 0.7rem;
+  padding: 0.75rem 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #e0e7f6;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.cardSpacer {
+  margin-top: 1.5rem;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.cardHeader h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.count {
+  background: #1f4ec3;
+  color: #fff;
+  border-radius: 999px;
+  min-width: 2rem;
+  text-align: center;
+  padding: 0.2rem 0.55rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.userCard {
+  border: 1px solid #e4e9f5;
+  border-radius: 0.8rem;
+  padding: 0.85rem;
+  background: #fbfcff;
+}
+
+.scholarshipCard {
+  border: 1px solid #e4e9f5;
+  border-radius: 0.8rem;
+  padding: 0.85rem;
+  background: #fbfcff;
+}
+
+.scholarshipTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.scholarshipTop h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.scholarshipTop p {
+  margin: 0.2rem 0 0;
+  color: #5f6f89;
+  font-size: 0.9rem;
+}
+
+.userTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.userTop h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.userTop p {
+  margin: 0.2rem 0 0;
+  color: #5f6f89;
+  font-size: 0.9rem;
+}
+
+.role {
+  align-self: flex-start;
+  text-transform: capitalize;
+  font-size: 0.78rem;
+  background: #e3ecff;
+  color: #244391;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  font-size: 0.83rem;
+  color: #6b7a93;
+  margin-bottom: 0.75rem;
+}
+
+.verifyBox {
+  border: 1px solid #e4ebfa;
+  background: #f7faff;
+  border-radius: 0.7rem;
+  padding: 0.7rem;
+  margin-bottom: 0.75rem;
+}
+
+.verifyTitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #35568f;
+}
+
+.verifyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+}
+
+.verifyItem {
+  border: 1px solid #dce6fa;
+  border-radius: 0.55rem;
+  background: #fff;
+  padding: 0.45rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.verifyLabel {
+  color: #5c6f91;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.verifyValue {
+  color: #1f2a44;
+  font-weight: 600;
+  font-size: 0.86rem;
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.approveBtn,
+.rejectBtn {
+  border: none;
+  border-radius: 0.55rem;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.approveBtn {
+  background: #0f9f66;
+  color: #fff;
+}
+
+.approveBtn:hover {
+  background: #0d8d5a;
+}
+
+.rejectBtn {
+  background: #fce2e2;
+  color: #a51f2d;
+}
+
+.rejectBtn:hover {
+  background: #f8cdcd;
+}
+
+.approveBtn:disabled,
+.rejectBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty {
+  margin: 0;
+  color: #66758e;
+  padding: 0.5rem 0;
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+  }
+
+  .headerActions {
+    justify-content: flex-start;
+  }
+}

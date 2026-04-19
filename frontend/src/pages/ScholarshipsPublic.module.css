@@ -1,0 +1,30 @@
+.page { display: flex; flex-direction: column; min-height: 100vh; background: white; }
+.body { max-width: 860px; margin: 0 auto; width: 100%; padding: 2rem 1.5rem; }
+.body h1 { font-size: 1.75rem; margin-bottom: 1.25rem; color: var(--text); }
+
+.filterBar { display: flex; gap: 0.75rem; margin-bottom: 1.75rem; }
+.searchBox { flex: 1; display: flex; align-items: center; gap: 0.5rem; border: 1.5px solid var(--border); border-radius: var(--radius); padding: 0.6rem 1rem; background: var(--bg); }
+.searchBox:focus-within { border-color: var(--navy); background: white; }
+.searchBox span { color: var(--text-muted); font-size: 0.875rem; }
+.searchBox input { flex: 1; border: none; outline: none; background: transparent; font-size: 0.875rem; font-family: 'DM Sans', sans-serif; color: var(--text); }
+.filterSelect { padding: 0.6rem 1rem; border: 1.5px solid var(--border); border-radius: var(--radius); background: var(--bg); font-size: 0.875rem; color: var(--text); font-family: 'DM Sans', sans-serif; cursor: pointer; outline: none; min-width: 130px; }
+.filterSelect:focus { border-color: var(--navy); }
+
+.listTitle { font-size: 1.1rem; margin-bottom: 1rem; }
+.list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
+.empty { color: var(--text-muted); font-size: 0.9rem; padding: 2rem; text-align: center; }
+
+.card { display: flex; justify-content: space-between; padding: 1.35rem 1.5rem; border-bottom: 1px solid var(--border); background: white; transition: background 0.15s; }
+.card:last-child { border-bottom: none; }
+.card:hover { background: #fafafa; }
+.cardMain { flex: 1; }
+.cardMain h3 { font-size: 1.05rem; color: var(--text); margin-bottom: 0.35rem; }
+.eligibility { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 0.25rem; }
+.deadline { font-size: 0.82rem; color: var(--text-2); margin-bottom: 0.5rem; }
+.deadline strong { color: var(--navy); }
+.desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 0.75rem; }
+.cardActions { display: flex; align-items: center; gap: 0.5rem; }
+.detailBtn, .applyBtn { background: none; border: none; color: var(--green); font-size: 0.875rem; font-weight: 600; cursor: pointer; padding: 0; font-family: 'DM Sans', sans-serif; }
+.detailBtn:hover, .applyBtn:hover { text-decoration: underline; }
+.sep { color: var(--text-light); }
+.cardImg { width: 80px; height: 60px; background: var(--bg); border-radius: var(--radius); flex-shrink: 0; margin-left: 1rem; align-self: flex-start; }

@@ -1,0 +1,179 @@
+.page { max-width: 860px; }
+
+.back {
+  background: none; border: none;
+  color: var(--primary); font-size: 0.9rem;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  font-weight: 500; margin-bottom: 1rem; padding: 0;
+}
+
+.page h1 { font-size: 1.75rem; margin-bottom: 1.75rem; }
+
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+}
+
+.stepCircle {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem; font-weight: 700;
+  z-index: 1; transition: all 0.2s;
+}
+
+.step.active .stepCircle { background: var(--primary); color: white; }
+.step.done .stepCircle { background: var(--success); color: white; }
+
+.step span {
+  font-size: 0.75rem; color: var(--text-muted);
+  text-align: center; font-weight: 500;
+}
+.step.active span { color: var(--primary); font-weight: 600; }
+.step.done span { color: var(--success); }
+
+.stepLine {
+  position: absolute;
+  top: 17px;
+  left: calc(50% + 20px);
+  right: calc(-50% + 20px);
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+
+.formCard {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2rem;
+  box-shadow: var(--shadow);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.2rem;
+}
+
+.formGrid h2 { grid-column: 1 / -1; font-size: 1.25rem; margin-bottom: 0.5rem; }
+
+.field { display: flex; flex-direction: column; gap: 0.4rem; }
+.fullWidth { grid-column: 1 / -1; }
+
+.field label { font-size: 0.875rem; font-weight: 500; }
+
+.field input, .field select, .field textarea {
+  padding: 0.7rem 1rem;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  font-family: 'DM Sans', sans-serif;
+  transition: border-color 0.2s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--primary); background: white;
+}
+.field textarea { resize: vertical; }
+
+.hint {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: var(--primary-light);
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+}
+
+.fileBox {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1.2rem;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+.fileBox:hover { border-color: var(--primary); }
+.fileBox input { cursor: pointer; }
+.fileName { display: block; margin-top: 0.5rem; font-size: 0.85rem; color: var(--success); }
+
+.err { font-size: 0.8rem; color: var(--danger); }
+
+.review { display: flex; flex-direction: column; gap: 1.5rem; }
+.review h2 { font-size: 1.25rem; }
+
+.reviewSection {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+}
+
+.reviewSection h4 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.reviewRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+.reviewRow:last-child { border-bottom: none; }
+.reviewRow span { color: var(--text-muted); text-transform: capitalize; }
+
+.formNav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.prevBtn {
+  padding: 0.7rem 1.4rem;
+  background: transparent;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  color: var(--text); transition: all 0.15s;
+}
+.prevBtn:hover { border-color: var(--text-muted); }
+
+.nextBtn, .submitBtn {
+  padding: 0.7rem 1.6rem;
+  background: var(--primary); color: white;
+  border: none; border-radius: 8px;
+  font-size: 0.9rem; font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: background 0.2s;
+}
+.nextBtn:hover, .submitBtn:hover { background: var(--primary-dark); }
+.submitBtn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+@media (max-width: 600px) { .formGrid { grid-template-columns: 1fr; } }

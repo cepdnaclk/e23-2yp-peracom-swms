@@ -1,0 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --navy: #1e2a5e;
+  --navy-dark: #141d45;
+  --navy-light: #2d3f8a;
+  --green: #2e7d32;
+  --green-light: #43a047;
+  --green-pale: #e8f5e9;
+  --accent: #1565c0;
+  --bg: #eeeef8;
+  --bg-card: #ffffff;
+  --border: #e0e0ef;
+  --text: #1a1a2e;
+  --text-2: #374151;
+  --text-muted: #6b7280;
+  --text-light: #9ca3af;
+  --danger: #c62828;
+  --danger-light: #ffebee;
+  --warning: #e65100;
+  --warning-light: #fff3e0;
+  --shadow-sm: 0 1px 3px rgba(30,42,94,0.08);
+  --shadow: 0 2px 8px rgba(30,42,94,0.10), 0 1px 3px rgba(30,42,94,0.06);
+  --shadow-md: 0 4px 16px rgba(30,42,94,0.12);
+  --shadow-lg: 0 8px 32px rgba(30,42,94,0.15);
+  --radius: 8px;
+  --radius-lg: 12px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-family: 'DM Serif Display', serif; line-height: 1.2; }
+a { text-decoration: none; color: inherit; }
+button, input, select, textarea { font-family: 'DM Sans', sans-serif; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: #c5c5e0; border-radius: 10px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
