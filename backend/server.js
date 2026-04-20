@@ -1,57 +1,33 @@
-import express from 'express'
-import cors from 'cors'
-import dotenv from 'dotenv'
-import authRoutes from './routes/authRoutes.js'
-import studentRoutes from './routes/studentRoutes.js'
-import scholarshipRoutes from './routes/scholarshipRoutes.js'
-import applicationRoutes from './routes/applicationRoutes.js'
-import adminRoutes from './routes/adminRoutes.js'
-import donorRoutes from './routes/donorRoutes.js'
+// server.js
+// Main entry point for the Student Welfare Admin backend
 
-dotenv.config()
+const express = require('express');
+const cors = require('cors');
+require('dotenv').config();
 
-const app = express()
-const PORT = process.env.PORT || 5000
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-app.use(cors({
-  origin: [
-    process.env.CLIENT_URL || 'http://localhost:3000',
-    'http://localhost:5173',
-    'http://localhost:4173',
-  ],
-  credentials: true
-}))
+// ── Middleware ──────────────────────────────────────────────
+app.use(cors());
+app.use(express.json());
 
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+// ── Routes ──────────────────────────────────────────────────
+app.use('/api/dashboard',     require('./routes/dashboard'));
+app.use('/api/scholarships',  require('./routes/scholarships'));
+app.use('/api/donor-requests',require('./routes/donorRequests'));
+app.use('/api/applications',  require('./routes/applications'));
+app.use('/api/assignments',   require('./routes/assignments'));
+app.use('/api/donors',        require('./routes/donors'));
+app.use('/api/announcements', require('./routes/announcements'));
+app.use('/api/issues',        require('./routes/issues'));
 
-app.use('/api/auth', authRoutes)
-app.use('/api/student', studentRoutes)
-app.use('/api/scholarships', scholarshipRoutes)
-app.use('/api/applications', applicationRoutes)
-app.use('/api/admin', adminRoutes)
-app.use('/api/donor', donorRoutes)
-
+// ── Health check ────────────────────────────────────────────
 app.get('/', (req, res) => {
-  res.json({
-    message: '✅ Member 1 Backend is running!',
-    endpoints: {
-      auth: '/api/auth',
-      student: '/api/student',
-      scholarships: '/api/scholarships',
-      applications: '/api/applications',
-      admin: '/api/admin'
-    }
-  })
-})
+  res.json({ message: 'Student Welfare Admin API is running.' });
+});
 
-app.use((err, req, res, next) => {
-  console.error('Server Error:', err.message)
-  res.status(err.status || 500).json({
-    error: err.message || 'Something went wrong on the server.'
-  })
-})
-
+// ── Start server ────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`)
-})
+  console.log(`Server running on http://localhost:${PORT}`);
+});
