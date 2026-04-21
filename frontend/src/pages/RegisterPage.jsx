@@ -5,7 +5,18 @@ import Footer from '../components/Footer'
 import styles from './RegisterPage.module.css'
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 
-function IW({  placeholder, type = 'text', value, onChange, required, showToggle, show, onToggle }) {
+function getPasswordStrength(password) {
+  if (password.length < 8) return 'Too short';
+  if (!/[A-Z]/.test(password)) return 'Weak';
+  if (!/[0-9]/.test(password)) return 'Weak';
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Medium';
+  return 'Strong';
+}
+
+function IW({  placeholder, type = 'text', value, onChange, required, 
+  showToggle, show, onToggle, showStrength, matchWith }) {
+  const strength = showStrength ? getPasswordStrength(value) : null;
+  const match = matchWith !== undefined ? value === matchWith : null;
   return (
     <div className={styles.inputWrap}>
       
@@ -17,6 +28,22 @@ function IW({  placeholder, type = 'text', value, onChange, required, showToggle
         <button type="button" className={styles.eyeBtn} onClick={onToggle}>
           {show ? <FaEyeSlash /> : <FaEye />}
         </button>
+      )}
+        {showStrength && value && (
+        <div style={{
+          fontSize: '0.9em',
+          color: strength === 'Strong' ? 'green' : 'orange'
+        }}>
+          Strength: {strength}
+        </div>
+      )}
+      {matchWith !== undefined && value && (
+        <div style={{
+          fontSize: '0.9em',
+          color: match ? 'green' : 'red'
+        }}>
+          {match ? 'Passwords match' : 'Passwords do not match'}
+        </div>
       )}
     </div>
   )
@@ -60,8 +87,7 @@ export default function RegisterPage() {
       ;({ email, password, confirm } = admin)
       metadata = { full_name: admin.fullName, staff_id: admin.staffId, department: admin.department, role: 'admin' }
     }
-    if (password !== confirm) return setError('Passwords do not match.')
-    if (password.length < 8) return setError('Password must be at least 8 characters.')
+    
     setLoading(true)
     try {
     await signUp(email, password, metadata) // 1. Wait for the backend/Supabase to finish...
@@ -167,10 +193,10 @@ export default function RegisterPage() {
               </F>
             </div>
             <F label="Password">
-              <IW  placeholder="Password" value={student.password} onChange={e => setStudent(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} />
+              <IW  placeholder="Password" value={student.password} onChange={e => setStudent(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} showStrength/>
             </F>
             <F label="Confirm Password">
-              <IW  placeholder="Confirm password" value={student.confirm} onChange={e => setStudent(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} />
+              <IW  placeholder="Confirm password" value={student.confirm} onChange={e => setStudent(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} matchWith={student.password} />
             </F>
           </>)}
 
@@ -190,10 +216,10 @@ export default function RegisterPage() {
               </F>
             </div>
             <F label="Password">
-              <IW  placeholder="Password" value={donor.password} onChange={e => setDonor(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} />
+              <IW  placeholder="Password" value={donor.password} onChange={e => setDonor(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} showStrength />
             </F>
             <F label="Confirm Password">
-              <IW  placeholder="Confirm password" value={donor.confirm} onChange={e => setDonor(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} />
+              <IW  placeholder="Confirm password" value={donor.confirm} onChange={e => setDonor(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} matchWith={donor.password} />
             </F>
           </>)}
 
@@ -213,14 +239,26 @@ export default function RegisterPage() {
               <IW placeholder="admin@university.lk" type="email" value={admin.email} onChange={e => setAdmin(prev => ({...prev, email: e.target.value}))} required />
             </F>
             <F label="Password">
-              <IW placeholder="Password" value={admin.password} onChange={e => setAdmin(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} />
+              <IW placeholder="Password" value={admin.password} onChange={e => setAdmin(prev => ({...prev, password: e.target.value}))} required showToggle show={showPw} onToggle={() => setShowPw(p => !p)} showStrength />
             </F>
             <F label="Confirm Password">
-              <IW placeholder="Confirm password" value={admin.confirm} onChange={e => setAdmin(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} />
+              <IW placeholder="Confirm password" value={admin.confirm} onChange={e => setAdmin(prev => ({...prev, confirm: e.target.value}))} required showToggle show={showCpw} onToggle={() => setShowCpw(p => !p)} matchWith={admin.password} />
             </F>
           </>)}
-
-          <button className={styles.submitBtn} disabled={loading}>
+{/* The button is disabled if loading, any required field is empty,
+ the password is not strong, or the passwords do not match */}
+ 
+          <button className={styles.submitBtn} disabled={
+            loading ||
+            !student.fullName ||
+            !student.registrationNo ||
+            !student.batch ||
+            !student.email ||
+            !student.password ||
+            !student.confirm ||
+            getPasswordStrength(student.password) !== 'Strong' ||
+            student.password !== student.confirm
+          }>
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
