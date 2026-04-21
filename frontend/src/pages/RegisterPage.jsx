@@ -310,17 +310,41 @@ export default function RegisterPage() {
 {/* The button is disabled if loading, any required field is empty,
  the password is not strong, or the passwords do not match */}
 
-          <button className={styles.submitBtn} disabled={
-            loading ||
-            !student.fullName ||
-            !student.registrationNo ||
-            !student.batch ||
-            !student.email ||
-            !student.password ||
-            !student.confirm ||
-            getPasswordStrength(student.password) !== 'Strong' ||
-            student.password !== student.confirm
-          }>
+          <button
+            className={styles.submitBtn}
+            disabled={
+              loading ||
+              (role === 'student' && (
+                !student.fullName ||
+                !student.registrationNo ||
+                !student.batch ||
+                !student.email ||
+                !student.password ||
+                !student.confirm ||
+                getPasswordStrength(student.password) !== 'Strong' ||
+                student.password !== student.confirm
+              )) ||
+              (role === 'donor' && (
+                !donor.donorName ||
+                !donor.email ||
+                !donor.phone ||
+                !donor.password ||
+                !donor.confirm ||
+                getPasswordStrength(donor.password) !== 'Strong' ||
+                donor.password !== donor.confirm
+              )) ||
+              (role === 'admin' && (
+                !admin.fullName ||
+                !admin.staffId ||
+                !admin.department ||
+                !admin.email ||
+                !admin.password ||
+                !admin.confirm ||
+                getPasswordStrength(admin.password) !== 'Strong' ||
+                admin.password !== admin.confirm
+              ))
+            }
+          >
             {loading ? 'Registering...' : 'Register'}
           </button>
         </form>
