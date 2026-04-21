@@ -15,6 +15,7 @@ function getPasswordStrength(password) {
 
 function IW({  placeholder, type = 'text', value, onChange, required, 
   showToggle, show, onToggle, showStrength, matchWith ,  maxLength }) {
+
   const strength = showStrength ? getPasswordStrength(value) : null;
   const match = matchWith !== undefined ? value === matchWith : null;
   return (
@@ -30,13 +31,45 @@ function IW({  placeholder, type = 'text', value, onChange, required,
         </button>
       )}
         {showStrength && value && (
-        <div style={{
-          fontSize: '0.9em',
-          color: strength === 'Strong' ? 'green' : 'orange'
-        }}>
-          Strength: {strength}
-        </div>
-      )}
+  <div
+    style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      backgroundColor:
+        strength === 'Strong'
+          ? '#fbfdf9'
+          : strength === 'Medium'
+          ? '#fffbe6'
+          : '#fdeaea',
+      color:
+        strength === 'Strong'
+          ? '#34c83b'
+          : strength === 'Medium'
+          ? '#b59f00'
+          : '#e04848',
+      fontWeight: 'bold',
+      fontSize: '1rem',
+      borderRadius: '1.2em',
+      padding: '0.2em 0.9em',
+      marginTop: '0.4em',
+      marginBottom: '0.2em',
+      fontFamily: 'Segoe UI, Arial, sans-serif',
+      letterSpacing: '0.5px',
+      gap: '0.5em',
+      border: 'none',
+      width: 'fit-content',
+    }}
+  >
+    {strength === 'Strong' && (
+      <>
+        Strong <span style={{ fontSize: '0.8em', marginLeft: '0.2em' }}></span>
+      </>
+    )}
+    {strength === 'Medium' && <>Medium</>}
+    {strength === 'Weak' && <>Weak</>}
+    {strength === 'Too short' && <>Too short</>}
+  </div>
+)}
       {matchWith !== undefined && value && (
         <div style={{
           fontSize: '0.9em',
@@ -45,7 +78,7 @@ function IW({  placeholder, type = 'text', value, onChange, required,
           {match ? 'Passwords match' : 'Passwords do not match'}
         </div>
       )}
-      maxLength={maxLength}
+     
     </div>
   )
 }
@@ -198,9 +231,7 @@ export default function RegisterPage() {
                     style={{ width: '5rem' }}
                   >
                     <option value="+94">+94 (LK)</option>
-                    <option value="+91">+91 (IN)</option>
-                    <option value="+1">+1 (US)</option>
-                    {/* Add more as needed */}
+                    
                   </select>
                   <IW  type="tel" placeholder="Phone" value={student.phone} onChange={e => {
                         const val = e.target.value.replace(/\D/g, ''); // Only digits
