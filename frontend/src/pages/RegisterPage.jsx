@@ -4,10 +4,10 @@ import { useAuth } from '../context/AuthContext'
 import Footer from '../components/Footer'
 import styles from './RegisterPage.module.css'
 
-function IW({ icon, placeholder, type = 'text', value, onChange, required, showToggle, show, onToggle }) {
+function IW({  placeholder, type = 'text', value, onChange, required, showToggle, show, onToggle }) {
   return (
     <div className={styles.inputWrap}>
-      {icon && <span className={styles.inputIcon}>{icon}</span>}
+      
       <input
         type={showToggle ? (show ? 'text' : 'password') : type}
         placeholder={placeholder} value={value} onChange={onChange}
