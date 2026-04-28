@@ -5,8 +5,6 @@ import authRoutes from './routes/authRoutes.js'
 import studentRoutes from './routes/studentRoutes.js'
 import scholarshipRoutes from './routes/scholarshipRoutes.js'
 import applicationRoutes from './routes/applicationRoutes.js'
-import adminRoutes from './routes/adminRoutes.js'
-import donorRoutes from './routes/donorRoutes.js'
 
 dotenv.config()
 
@@ -29,8 +27,6 @@ app.use('/api/auth', authRoutes)
 app.use('/api/student', studentRoutes)
 app.use('/api/scholarships', scholarshipRoutes)
 app.use('/api/applications', applicationRoutes)
-app.use('/api/admin', adminRoutes)
-app.use('/api/donor', donorRoutes)
 
 app.get('/', (req, res) => {
   res.json({
