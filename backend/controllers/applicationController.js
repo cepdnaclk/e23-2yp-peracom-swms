@@ -1,10 +1,7 @@
 // controllers/applicationController.js
-// Handles student scholarship application review and decisions
-
 const supabase = require('../config/supabase');
 
 // GET /api/applications
-// Supports search by student name, filter by scholarship, filter by status
 const getAll = async (req, res) => {
   try {
     let query = supabase
@@ -12,20 +9,41 @@ const getAll = async (req, res) => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (req.query.student_name) query = query.ilike('student_name', `%${req.query.student_name}%`);
-    if (req.query.scholarship_id) query = query.eq('scholarship_id', req.query.scholarship_id);
-    if (req.query.status) query = query.eq('status', req.query.status);
+    if (req.query.student_name)  query = query.ilike('student_name', `%${req.query.student_name}%`);
+    if (req.query.status)        query = query.eq('status', req.query.status);
+
+    // Filter by scholarship — try both scholarship_id and scholarship_title
+    if (req.query.scholarship_id) {
+      // First get the scholarship title for fallback
+      const { data: sch } = await supabase
+        .from('scholarships')
+        .select('title')
+        .eq('id', req.query.scholarship_id)
+        .single();
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Filter: match by scholarship_id OR by scholarship_title
+      const filtered = (data || []).filter(app =>
+        app.scholarship_id === req.query.scholarship_id ||
+        (sch && app.scholarship_title === sch.title)
+      );
+
+      return res.json(filtered);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
-    res.json(data);
+    res.json(data || []);
+
   } catch (error) {
+    console.error('getAll error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 // GET /api/applications/:id
-// Returns full application with documents
 const getById = async (req, res) => {
   try {
     const { data: application, error } = await supabase
@@ -35,7 +53,6 @@ const getById = async (req, res) => {
       .single();
     if (error) throw error;
 
-    // Fetch associated documents
     const { data: documents } = await supabase
       .from('application_documents')
       .select('*')
@@ -48,12 +65,9 @@ const getById = async (req, res) => {
 };
 
 // PUT /api/applications/:id/decision
-// Admin approves, rejects, or requests resubmission
 const makeDecision = async (req, res) => {
   try {
     const { status, reason } = req.body;
-    // status: 'Approved' | 'Rejected' | 'Resubmission Requested'
-
     const { data, error } = await supabase
       .from('applications')
       .update({ status, admin_reason: reason || null })
@@ -67,16 +81,37 @@ const makeDecision = async (req, res) => {
 };
 
 // GET /api/applications/approved/:scholarship_id
-// Get approved students for a specific scholarship (used in assign page)
 const getApprovedByScholarship = async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const scholarshipId = req.params.scholarship_id;
+
+    // Get scholarship title for fallback matching
+    const { data: sch } = await supabase
+      .from('scholarships')
+      .select('title')
+      .eq('id', scholarshipId)
+      .single();
+
+    // Try by scholarship_id
+    const { data: byId } = await supabase
       .from('applications')
       .select('*')
-      .eq('scholarship_id', req.params.scholarship_id)
+      .eq('scholarship_id', scholarshipId)
       .eq('status', 'Approved');
-    if (error) throw error;
-    res.json(data);
+
+    if (byId && byId.length > 0) return res.json(byId);
+
+    // Fallback: by title
+    if (sch) {
+      const { data: byTitle } = await supabase
+        .from('applications')
+        .select('*')
+        .eq('scholarship_title', sch.title)
+        .eq('status', 'Approved');
+      return res.json(byTitle || []);
+    }
+
+    res.json([]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

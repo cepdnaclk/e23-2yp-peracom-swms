@@ -1,85 +1,130 @@
 // controllers/assignmentController.js
-// Handles assigning approved students to donors
-
 const supabase = require('../config/supabase');
 
 // GET /api/assignments/scholarship/:id
-// Get scholarship info + linked donor + approved students for the assign page
 const getScholarshipForAssignment = async (req, res) => {
   try {
-    // Get scholarship details
+    const scholarshipId = req.params.id;
+
+    // 1. Get scholarship
     const { data: scholarship, error: sErr } = await supabase
       .from('scholarships')
       .select('*')
-      .eq('id', req.params.id)
+      .eq('id', scholarshipId)
       .single();
     if (sErr) throw sErr;
 
-    // Get linked donor
-    const { data: donor } = await supabase
-      .from('donors')
-      .select('id, name, organization')
-      .eq('id', scholarship.donor_id)
-      .single();
+    // 2. Get donor
+    let donor = null;
+    if (scholarship.donor_id) {
+      const { data: donorData } = await supabase
+        .from('donors')
+        .select('id, name, organization')
+        .eq('id', scholarship.donor_id)
+        .single();
+      donor = donorData;
+    }
 
-    // Get approved students for this scholarship
-    const { data: students } = await supabase
+    // 3. Get approved students — try scholarship_id first, fallback to scholarship_title
+    let approvedStudents = [];
+
+    const { data: byId } = await supabase
       .from('applications')
-      .select('id, student_name, registration_number, batch, gpa, department, status')
-      .eq('scholarship_id', req.params.id)
+      .select('id, student_name, registration_number, batch, gpa, department, status, scholarship_id, scholarship_title')
+      .eq('scholarship_id', scholarshipId)
       .eq('status', 'Approved');
 
-    // Count already assigned
-    const { count: assignedCount } = await supabase
+    if (byId && byId.length > 0) {
+      approvedStudents = byId;
+    } else {
+      // Fallback: match by scholarship title
+      const { data: byTitle } = await supabase
+        .from('applications')
+        .select('id, student_name, registration_number, batch, gpa, department, status, scholarship_id, scholarship_title')
+        .eq('scholarship_title', scholarship.title)
+        .eq('status', 'Approved');
+
+      approvedStudents = byTitle || [];
+
+      // Auto-fix: update scholarship_id on these records
+      if (approvedStudents.length > 0) {
+        const ids = approvedStudents.map(s => s.id);
+        await supabase
+          .from('applications')
+          .update({ scholarship_id: scholarshipId })
+          .in('id', ids);
+      }
+    }
+
+    // 4. Get already assigned IDs
+    const { data: assigned } = await supabase
       .from('donor_students')
-      .select('*', { count: 'exact', head: true })
-      .eq('scholarship_id', req.params.id);
+      .select('application_id')
+      .eq('scholarship_id', scholarshipId);
+
+    const assignedIds = (assigned || []).map(a => a.application_id);
+
+    // 5. Mark already assigned
+    const studentsWithFlag = approvedStudents.map(s => ({
+      ...s,
+      already_assigned: assignedIds.includes(s.id),
+    }));
 
     res.json({
       scholarship,
-      donor: donor || null,
-      approvedStudents: students || [],
-      alreadyAssignedCount: assignedCount || 0,
+      donor,
+      approvedStudents:     studentsWithFlag,
+      alreadyAssignedCount: assignedIds.length,
+      totalApprovedCount:   studentsWithFlag.length,
     });
+
   } catch (error) {
+    console.error('getScholarshipForAssignment error:', error);
     res.status(500).json({ error: error.message });
   }
 };
 
 // POST /api/assignments
-// Assign selected students to the donor linked with a scholarship
 const assignStudents = async (req, res) => {
   try {
     const { scholarship_id, student_ids, note } = req.body;
 
-    // Get donor linked to this scholarship
-    const { data: scholarship } = await supabase
+    if (!scholarship_id)                        return res.status(400).json({ error: 'scholarship_id is required' });
+    if (!student_ids || student_ids.length === 0) return res.status(400).json({ error: 'No students selected' });
+
+    // Get donor
+    const { data: scholarship, error: sErr } = await supabase
       .from('scholarships')
       .select('donor_id')
       .eq('id', scholarship_id)
       .single();
 
-    if (!scholarship) {
-      return res.status(404).json({ error: 'Scholarship not found' });
-    }
+    if (sErr || !scholarship) return res.status(404).json({ error: 'Scholarship not found' });
+    if (!scholarship.donor_id) return res.status(400).json({ error: 'No donor linked to this scholarship' });
 
-    // Build insert rows
-    const rows = student_ids.map(student_id => ({
-      donor_id: scholarship.donor_id,
+    // Build rows
+    const rows = student_ids.map(application_id => ({
+      donor_id:       scholarship.donor_id,
       scholarship_id,
-      application_id: student_id,
-      note: note || null,
-      assigned_at: new Date().toISOString(),
+      application_id,
+      note:           note || null,
+      assigned_at:    new Date().toISOString(),
     }));
 
-    const { data, error } = await supabase
+    const { data, error: insertErr } = await supabase
       .from('donor_students')
       .upsert(rows, { onConflict: 'donor_id,scholarship_id,application_id' })
       .select();
 
-    if (error) throw error;
-    res.status(201).json({ message: `${rows.length} student(s) assigned successfully.`, data });
+    if (insertErr) throw insertErr;
+
+    res.status(201).json({
+      message:  `${rows.length} student(s) assigned successfully`,
+      assigned: data,
+    });
+
   } catch (error) {
+    console.error('assignStudents error:', error);
     res.status(500).json({ error: error.message });
   }
 };
