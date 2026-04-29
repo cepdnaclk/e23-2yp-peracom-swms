@@ -1,5 +1,6 @@
-// src/pages/AssignStudentsToDonor.jsx
-// FULLY FIXED — works even if scholarship_id is null in applications table
+// ============================================================
+// FILE 5: frontend/src/pages/AssignStudentsToDonor.jsx
+// ============================================================
 
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -21,55 +22,41 @@ export default function AssignStudentsToDonor() {
   const [loading, setLoading]                 = useState(true);
   const [submitting, setSubmitting]           = useState(false);
 
-  // ── Load all data ─────────────────────────────────────────
+  // ── Load data ─────────────────────────────────────────────
   useEffect(() => {
-    const loadData = async () => {
+    const load = async () => {
       setLoading(true);
       try {
-        // 1. Load scholarship
-        const schRes = await api.get(`/scholarships/${id}`);
-        const sch = schRes.data;
-        setScholarship(sch);
+        const res = await api.get(`/assignments/scholarship/${id}`);
+        console.log('Assignment data:', res.data);
 
-        // 2. Load donor if linked
-        if (sch?.donor_id) {
-          try {
-            const donorRes = await api.get(`/donors/${sch.donor_id}`);
-            setDonor(donorRes.data);
-          } catch {
-            console.warn('Donor not found');
-          }
-        }
+        setScholarship(res.data.scholarship);
+        setDonor(res.data.donor);
+        setStudents(res.data.approvedStudents || []);
 
-        // 3. Load approved students using the assignment endpoint
-        //    This endpoint does smart matching (by id OR by title)
-        const assignRes = await api.get(`/assignments/scholarship/${id}`);
-        const approvedList = assignRes.data?.approvedStudents || [];
-
-        console.log('Approved students loaded:', approvedList.length, approvedList);
-        setStudents(approvedList);
-
-        // 4. Track already assigned
-        const assignedIds = approvedList
+        // Track already assigned IDs
+        const assignedIds = (res.data.approvedStudents || [])
           .filter(s => s.already_assigned)
           .map(s => s.id);
         setAlreadyAssigned(assignedIds);
 
       } catch (err) {
         console.error('Load error:', err);
-        toast.error('Failed to load data. Check console for details.');
+        toast.error('Failed to load data');
       } finally {
         setLoading(false);
       }
     };
-
-    loadData();
+    load();
   }, [id]);
 
-  // ── Selection logic ───────────────────────────────────────
-  const selectableStudents = students.filter(s => !alreadyAssigned.includes(s.id));
-  const selectableIds      = selectableStudents.map(s => s.id);
-  const allSelected        = selectableIds.length > 0 && selected.length === selectableIds.length;
+  // ── Checkbox logic ────────────────────────────────────────
+  const selectableIds = students
+    .filter(s => !alreadyAssigned.includes(s.id))
+    .map(s => s.id);
+
+  const allSelected = selectableIds.length > 0 &&
+    selected.length === selectableIds.length;
 
   const toggleStudent = (studentId) => {
     setSelected(prev =>
@@ -85,7 +72,12 @@ export default function AssignStudentsToDonor() {
 
   // ── Assign ────────────────────────────────────────────────
   const handleAssign = async () => {
-    if (selected.length === 0) return toast.error('Please select at least one student');
+    if (selected.length === 0) {
+      return toast.error('Please select at least one student');
+    }
+    if (!scholarship?.donor_id) {
+      return toast.error('No donor is linked to this scholarship');
+    }
 
     setSubmitting(true);
     try {
@@ -94,8 +86,10 @@ export default function AssignStudentsToDonor() {
         student_ids:    selected,
         note:           note || null,
       });
-      toast.success(res.data.message || `${selected.length} student(s) assigned!`);
+
+      toast.success(res.data.message || 'Students assigned successfully!');
       navigate('/scholarships');
+
     } catch (err) {
       console.error('Assign error:', err);
       toast.error(err.response?.data?.error || 'Assignment failed');
@@ -120,14 +114,12 @@ export default function AssignStudentsToDonor() {
           <h2 className="font-semibold text-slate-700 mb-4">Scholarship Details</h2>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
-              ['Scholarship Title',  scholarship?.title || '—'],
-              ['Donor Name',         donor?.name || 'No donor linked'],
-              ['Funding Amount',     scholarship?.funding_amount
-                                       ? `LKR ${Number(scholarship.funding_amount).toLocaleString()}`
-                                       : '—'],
-              ['Approved Students',  students.length],
-              ['Already Assigned',   alreadyAssigned.length],
-              ['Eligible Batch',     scholarship?.eligible_batch || '—'],
+              ['Scholarship',      scholarship?.title || '—'],
+              ['Donor',            donor?.name || 'No donor linked ⚠️'],
+              ['Funding Amount',   scholarship?.funding_amount ? `LKR ${Number(scholarship.funding_amount).toLocaleString()}` : '—'],
+              ['Approved Students', students.length],
+              ['Already Assigned',  alreadyAssigned.length],
+              ['Eligible Batch',    scholarship?.eligible_batch || '—'],
             ].map(([label, val]) => (
               <div key={label}>
                 <dt className="text-xs text-slate-400">{label}</dt>
@@ -136,10 +128,10 @@ export default function AssignStudentsToDonor() {
             ))}
           </dl>
 
-          {/* Warning if no donor linked */}
+          {/* Warning if no donor */}
           {!scholarship?.donor_id && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-              ⚠️ No donor is linked to this scholarship. Please link a donor before assigning students.
+              ⚠️ No donor linked to this scholarship. Go to Donor Management and link a donor first.
             </div>
           )}
         </div>
@@ -153,20 +145,20 @@ export default function AssignStudentsToDonor() {
                 {students.length} total
               </span>
             </h2>
-            {students.length > 0 && (
-              <span className="text-xs text-slate-400">
-                {selected.length} of {selectableIds.length} selected
-              </span>
-            )}
+            <span className="text-xs text-slate-400">
+              {selected.length} of {selectableIds.length} selected
+            </span>
           </div>
 
           {students.length === 0 ? (
-            <div className="text-center py-12 text-slate-400">
+            <div className="text-center py-12">
               <p className="text-4xl mb-3">📭</p>
-              <p className="text-sm font-medium">No approved students found for this scholarship.</p>
-              <p className="text-xs mt-1">
-                Go to <strong>Application Review</strong>, find applications for this scholarship,
-                and set their status to <strong>Approved</strong>.
+              <p className="text-sm font-medium text-slate-600">
+                No approved students for this scholarship.
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                Go to <strong>Application Review</strong> → find applications
+                for this scholarship → click <strong>Approve Application</strong>
               </p>
             </div>
           ) : (
@@ -174,7 +166,6 @@ export default function AssignStudentsToDonor() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="table-header">
-                    {/* Select all checkbox */}
                     <th className="px-3 py-2.5 w-10">
                       <input
                         type="checkbox"
@@ -184,7 +175,7 @@ export default function AssignStudentsToDonor() {
                         title={allSelected ? 'Deselect all' : 'Select all'}
                       />
                     </th>
-                    {['Student Name', 'Reg. Number', 'Batch', 'GPA', 'Department', 'Status'].map(h => (
+                    {['Student Name', 'Reg. No', 'Batch', 'GPA', 'Department', 'Status'].map(h => (
                       <th key={h} className="text-left px-3 py-2.5">{h}</th>
                     ))}
                   </tr>
@@ -198,7 +189,7 @@ export default function AssignStudentsToDonor() {
                       <tr
                         key={student.id}
                         onClick={() => !isAssigned && toggleStudent(student.id)}
-                        className={`border-b border-slate-100 transition-colors duration-100 ${
+                        className={`border-b border-slate-100 transition-colors ${
                           isAssigned
                             ? 'opacity-50 bg-slate-50 cursor-not-allowed'
                             : isSelected
@@ -206,7 +197,6 @@ export default function AssignStudentsToDonor() {
                               : 'hover:bg-purple-50/40 cursor-pointer'
                         }`}
                       >
-                        {/* Checkbox — stop row click propagation */}
                         <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                           <input
                             type="checkbox"
@@ -219,19 +209,17 @@ export default function AssignStudentsToDonor() {
                         <td className="px-3 py-3 font-medium text-slate-800">
                           {student.student_name}
                           {isAssigned && (
-                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-1.5 py-0.5 rounded-full">
-                              Already Assigned
+                            <span className="ml-2 text-xs bg-green-100 text-green-600 px-2 py-0.5 rounded-full">
+                              Assigned
                             </span>
                           )}
                         </td>
                         <td className="px-3 py-3 text-slate-500">{student.registration_number || '—'}</td>
                         <td className="px-3 py-3 text-slate-500">{student.batch || '—'}</td>
                         <td className="px-3 py-3">
-                          {student.gpa ? (
-                            <span className={`font-medium ${Number(student.gpa) >= 3.5 ? 'text-green-600' : 'text-slate-600'}`}>
-                              {student.gpa}
-                            </span>
-                          ) : '—'}
+                          <span className={`font-medium ${Number(student.gpa) >= 3.5 ? 'text-green-600' : 'text-slate-600'}`}>
+                            {student.gpa || '—'}
+                          </span>
                         </td>
                         <td className="px-3 py-3 text-slate-500">{student.department || '—'}</td>
                         <td className="px-3 py-3"><StatusBadge status={student.status} /></td>
@@ -244,7 +232,7 @@ export default function AssignStudentsToDonor() {
           )}
         </div>
 
-        {/* ── Assignment Confirmation ── */}
+        {/* ── Confirmation ── */}
         <div className="card">
           <h2 className="font-semibold text-slate-700 mb-4">Assignment Confirmation</h2>
 
@@ -259,8 +247,7 @@ export default function AssignStudentsToDonor() {
             </div>
             <div>
               <dt className="text-xs text-slate-400">Selected Students</dt>
-              {/* Dynamically updates as checkboxes are clicked */}
-              <dd className={`text-3xl font-bold mt-0.5 transition-all duration-200 ${
+              <dd className={`text-3xl font-bold mt-0.5 transition-all ${
                 selected.length > 0 ? 'text-purple-600' : 'text-slate-300'
               }`}>
                 {selected.length}
@@ -268,7 +255,7 @@ export default function AssignStudentsToDonor() {
             </div>
           </dl>
 
-          {/* Selected student name chips */}
+          {/* Selected chips */}
           {selected.length > 0 && (
             <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 mb-4">
               <p className="text-xs text-purple-600 font-semibold mb-2">
@@ -283,8 +270,7 @@ export default function AssignStudentsToDonor() {
                       {s.student_name}
                       <button
                         onClick={() => toggleStudent(sid)}
-                        className="text-purple-300 hover:text-red-500 font-bold leading-none"
-                        title="Remove"
+                        className="text-purple-300 hover:text-red-500 font-bold"
                       >×</button>
                     </span>
                   ) : null;
@@ -293,7 +279,7 @@ export default function AssignStudentsToDonor() {
             </div>
           )}
 
-          {/* Optional note */}
+          {/* Note */}
           <div className="mb-5">
             <label className="text-xs text-slate-500 mb-1 block">Note (Optional)</label>
             <textarea
