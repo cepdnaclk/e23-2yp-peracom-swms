@@ -10,7 +10,7 @@ npm run dev
 
 ## Backend expectation
 
-This frontend expects your backend at:
+This frontend expects your backend  at:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000/api
