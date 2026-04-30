@@ -94,11 +94,16 @@ export const loginUser = async (req, res) => {
     return res.status(403).json({ error: 'Please confirm your email before logging in.' })
   }
 
+  // Debug log for user ID being used
+  console.log('Looking up profile for user ID:', data.user.id)
   const { data: profile } = await supabaseAdmin
     .from('profiles')
     .select('status, role, full_name, email')
     .eq('id', data.user.id)
     .single()
+
+  // Debug log for troubleshooting approval issues
+  console.log('Fetched profile for login:', profile)
 
   if (!profile || profile.status !== 'approved') {
     return res.status(403).json({ error: 'Your account is pending admin approval.' })
