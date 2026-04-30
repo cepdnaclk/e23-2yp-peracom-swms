@@ -7,6 +7,14 @@ import styles from './ApplyPage.module.css';
 const STEPS = ['Personal Info', 'Academic Details', 'Document Upload', 'Review & Submit'];
 
 export default function ApplyPage() {
+    useEffect(() => {
+      if (isSubmitted) {
+        const timer = setTimeout(() => {
+          navigate('/dashboard');
+        }, 2000); // 2 seconds
+        return () => clearTimeout(timer);
+      }
+    }, [isSubmitted, navigate]);
   const { id } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -160,14 +168,9 @@ export default function ApplyPage() {
             <div style={{ fontSize: '4rem', color: '#10b981', marginBottom: '1rem' }}>✅</div>
             <h2>Application Submitted Successfully!</h2>
             <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
-              Your application for <strong>{scholarship?.title}</strong> has been received and is now pending review.
+              Your application for <strong>{scholarship?.title}</strong> has been received and is now pending review.<br/>
+              Redirecting to your dashboard...
             </p>
-            <button 
-              onClick={() => navigate('/dashboard')}
-              style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer', fontSize: '1rem' }}
-            >
-              Go to My Dashboard
-            </button>
           </div>
         ) : (
           <>

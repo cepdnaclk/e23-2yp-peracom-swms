@@ -5,7 +5,7 @@ export const getStudentDashboard = async (req, res) => {
 
   const nowIso = new Date().toISOString()
   const [applicationsResult, latestAppsResult, announcementsResult, notificationsResult, openCountResult, openScholarshipsResult] = await Promise.all([
-    supabaseAdmin.from('applications').select('status').eq('student_id', studentId),
+    supabaseAdmin.from('applications').select('status, scholarship_id').eq('student_id', studentId),
     supabaseAdmin
       .from('applications')
       .select('id, status, created_at, updated_at, scholarship_id, personal_info, academic_info, document_urls')
@@ -25,7 +25,7 @@ export const getStudentDashboard = async (req, res) => {
       .eq('status', 'published')
       .or(`deadline.is.null,deadline.gte.${nowIso}`)
       .order('created_at', { ascending: false })
-      .limit(3)
+      .limit(3),
   ])
 
   const applications = applicationsResult.data || []
@@ -73,9 +73,13 @@ export const getStudentDashboard = async (req, res) => {
     draft: applications.filter(a => a.status === 'draft').length
   }
 
+  // Get all applied scholarship IDs (not just latest 4) for "Already Applied" check
+  const allAppliedScholarshipIds = [...new Set((applicationsResult.data || []).map(a => a.scholarship_id).filter(Boolean))]
+
   return res.status(200).json({
     application_summary: summary,
     latest_applications: normalizedLatestApplications,
+    all_applied_scholarship_ids: allAppliedScholarshipIds,
     announcements: announcementsResult.data || [],
     notifications: notificationsResult.data || [],
     unread_count: (notificationsResult.data || []).length,

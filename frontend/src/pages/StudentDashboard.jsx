@@ -24,6 +24,8 @@ const STATUS_ACTIONS = {
 }
 
 export default function StudentDashboard() {
+      const [allAppliedScholarshipIds, setAllAppliedScholarshipIds] = useState([]);
+    
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [applications, setApplications] = useState([])
@@ -41,40 +43,62 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true)
   const [openScholarships, setOpenScholarships] = useState([])
 
+  // Re-fetch when tab becomes visible (e.g., after applying from another page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAll()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   useEffect(() => { fetchAll() }, [])
 
   async function fetchAll() {
     try {
-      setLoading(true)
-      const { data: { session } } = await supabase.auth.getSession()
+      setLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      console.log("Fetching dashboard data from: /api/student/dashboard");
       
       const res = await fetch('/api/student/dashboard', {
         headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
-      })
-      const payload = await res.json()
+      });
+      
+      // Check if the response is valid JSON before parsing
+      const payload = await res.json();
 
-      if (!res.ok) throw new Error(payload.error || 'Failed to fetch dashboard data')
+      if (!res.ok) {
+        console.error("Backend Error Response:", payload);
+        throw new Error(payload.error || 'Failed to fetch dashboard data');
+      }
 
-      setApplications(payload.latest_applications || [])
+      console.log("SUCCESS - Received Payload:", payload);
+
+      setApplications(payload.latest_applications || []);
+      setAllAppliedScholarshipIds(payload.all_applied_scholarship_ids || []);
       setStatusCounts({
-        draft: payload.application_summary.draft,
-        pending: payload.application_summary.pending,
-        under_review: payload.application_summary.under_review,
-        admin_approved: payload.application_summary.admin_approved,
-        awarded: payload.application_summary.awarded,
-        rejected: payload.application_summary.rejected,
-      })
-      setOpenScholarshipsCount(payload.open_scholarships_count || 0)
-      setOpenScholarships(payload.open_scholarships || [])
-      setAnnouncements(payload.announcements || [])
-      setNotifications(payload.notifications || [])
+        draft: payload.application_summary.draft || 0,
+        pending: payload.application_summary.pending || 0,
+        under_review: payload.application_summary.under_review || 0,
+        admin_approved: payload.application_summary.admin_approved || 0,
+        awarded: payload.application_summary.awarded || 0,
+        rejected: payload.application_summary.rejected || 0,
+      });
+      setOpenScholarshipsCount(payload.open_scholarships_count || 0);
+      setOpenScholarships(payload.open_scholarships || []);
+      setAnnouncements(payload.announcements || []);
+      setNotifications(payload.notifications || []);
+      
     } catch (e) {
-      console.error('Failed to load dashboard:', e)
+      console.error('Failed to load dashboard:', e);
+      // If this shows "Failed to fetch", your backend is definitely not running
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
-
   function timeAgo(date) {
     const d = Math.floor((Date.now() - new Date(date)) / 86400000)
     if (d <= 1) return '1 day ago'
@@ -87,6 +111,12 @@ export default function StudentDashboard() {
 
   const fullName = profile?.full_name ?? user?.user_metadata?.full_name ?? ''
   const firstName = fullName.split(' ')[0] || 'Student'
+
+  // Check if student has already applied to a scholarship (using all IDs from backend)
+  const appliedScholarshipIdsSet = new Set((allAppliedScholarshipIds || []).map(String));
+  const hasApplied = (s) => {
+    return appliedScholarshipIdsSet.has(String(s?.id));
+  };
 
   return (
     <DashLayout>
@@ -167,27 +197,31 @@ export default function StudentDashboard() {
             <div className={styles.annList}>
               {loading ? <p className={styles.empty}>Loading...</p> :
                 openScholarships.length === 0 ? <p className={styles.empty}>No open scholarships at the moment.</p> :
-                  openScholarships.map(s => (
-                    <div 
-                      key={s.id} 
-                      className={styles.annItem} 
-                      style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer' }}
-                      onClick={() => navigate(`/scholarships/${s.id}`)}
-                    >
-                      <div className={styles.annName}>{s.title}</div>
-                      <div className={styles.annDate}>Deadline: {s.deadline ? new Date(s.deadline).toLocaleDateString('en-GB') : 'No deadline'}</div>
-                      <button 
-                        className={styles.applyNow} 
-                        style={{ width: 'fit-content', padding: '0.4rem 1rem', fontSize: '0.85rem' }} 
+                openScholarships.map(s => (
+                  <div
+                    key={s.id}
+                    className={styles.annItem}
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', cursor: 'pointer' }}
+                    onClick={() => navigate(`/scholarships/${s.id}`)}
+                  >
+                    <div className={styles.annName}>{s.title}</div>
+                    <div className={styles.annDate}>Deadline: {s.deadline ? new Date(s.deadline).toLocaleDateString('en-GB') : 'No deadline'}</div>
+                    {hasApplied(s) ? (
+                      <span style={{ color: 'green', fontWeight: 'bold' }}>Already Applied</span>
+                    ) : (
+                      <button
+                        className={styles.applyNow}
+                        style={{ width: 'fit-content', padding: '0.4rem 1rem', fontSize: '0.85rem' }}
                         onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/apply/${s.id}`);
+                          e.stopPropagation()
+                          navigate(`/apply/${s.id}`)
                         }}
                       >
                         Apply Now
                       </button>
-                    </div>
-                  ))
+                    )}
+                  </div>
+                ))
               }
               <button className={styles.viewAll} onClick={() => navigate('/scholarships')}>
                 Browse all scholarships <span>›</span>
