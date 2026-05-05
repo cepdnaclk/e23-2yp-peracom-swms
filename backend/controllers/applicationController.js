@@ -13,9 +13,7 @@ export const submitApplication = async (req, res) => {
   try {
     const studentId = req.user.id
     const scholarshipId = req.body.scholarship_id
-    const personalInfo = safeJsonParse(req.body.personal_info, {})
     const academicInfo = safeJsonParse(req.body.academic_info, {})
-    const personalInfoDb = Array.isArray(personalInfo) ? personalInfo : [personalInfo]
     const academicInfoDb = Array.isArray(academicInfo) ? academicInfo : [academicInfo]
 
     if (!scholarshipId) {
@@ -84,7 +82,6 @@ export const submitApplication = async (req, res) => {
         student_id: studentId,
         scholarship_id: scholarshipId,
         status: 'pending',
-        personal_info: personalInfoDb,
         academic_info: academicInfoDb,
         document_urls: documentUrls
       })

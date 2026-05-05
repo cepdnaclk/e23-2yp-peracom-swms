@@ -66,7 +66,6 @@ export const getDonorApplications = async (req, res) => {
       return parsed || {};
     };
 
-    const personalInfo = parseField(app.personal_info);
     const academicInfo = parseField(app.academic_info);
     
     // Safely structure document URLs flatly into a key-URL dictionary for the UI
@@ -96,7 +95,6 @@ export const getDonorApplications = async (req, res) => {
       ...app,
       profiles: profilesMap[app.student_id] || null,
       scholarships: scholarshipsMap[app.scholarship_id] || null,
-      personal_info: personalInfo,
       academic_info: academicInfo,
       document_urls: Object.keys(docs).length > 0 ? docs : docArr
     }

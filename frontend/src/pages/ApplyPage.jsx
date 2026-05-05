@@ -4,7 +4,7 @@ import Layout from '../components/dashboard/Layout';
 import { supabase } from '../services/supabaseClient';
 import styles from './ApplyPage.module.css';
 
-const STEPS = ['Personal Info', 'Academic Details', 'Document Upload', 'Review & Submit'];
+const STEPS = ['Academic Details', 'Document Upload', 'Review & Submit'];
 
 export default function ApplyPage() {
   const { id } = useParams();
@@ -27,11 +27,6 @@ export default function ApplyPage() {
     }
   }, [isSubmitted, navigate]);
 
-  const [personal, setPersonal] = useState({
-    dob: '',
-    gender: '',
-    address: '',
-  });
   const [academic, setAcademic] = useState({
     university: '',
     major: '',
@@ -100,16 +95,11 @@ export default function ApplyPage() {
   function validateStep() {
     const errs = {};
     if (step === 0) {
-      if (!personal.dob) errs.dob = 'Required';
-      if (!personal.gender) errs.gender = 'Required';
-      if (!personal.address) errs.address = 'Required';
-    }
-    if (step === 1) {
       if (!academic.university) errs.university = 'Required';
       if (!academic.major) errs.major = 'Required';
       if (!academic.gpa) errs.gpa = 'Required';
     }
-    if (step === 2) {
+    if (step === 1) {
       if (!files.grades) errs.grades = 'Required';
       if (!files.id_card) errs.id_card = 'Required';
     }
@@ -140,7 +130,6 @@ export default function ApplyPage() {
       // objects  turns them  into text strings (JSON.stringify),
       const formData = new FormData();
       formData.append('scholarship_id', id);
-      formData.append('personal_info', JSON.stringify(personal));
       formData.append('academic_info', JSON.stringify(academic));
 
       if (files.grades) formData.append('grades', files.grades);
@@ -218,55 +207,6 @@ export default function ApplyPage() {
                 <div className={styles.formCard}>
                   {step === 0 && (
                     <div className={styles.formGrid}>
-                      <h2>Personal Information</h2>
-                      <div className={styles.field}>
-                        <label>Date of Birth</label>
-                        <input
-                          type="date"
-                          value={personal.dob}
-                          onChange={(e) => setPersonal({ ...personal, dob: e.target.value })}
-                        />
-                        {errors.dob && <span className={styles.err}>{errors.dob}</span>}
-                      </div>
-
-                      <div className={styles.field}>
-                        <label>Gender</label>
-                        <select
-                          value={personal.gender}
-                          onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
-                          style={{
-                            width: '100%',
-                            padding: '0.75rem',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: '0.375rem',
-                            backgroundColor: 'white'
-                          }}
-                        >
-                          <option value="">Select Gender...</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                          <option value="Prefer not to say">Prefer not to say</option>
-                        </select>
-                        {errors.gender && <span className={styles.err}>{errors.gender}</span>}
-                      </div>
-
-                      <div className={`${styles.field} ${styles.fullWidth}`}>
-                        <label>Address</label>
-                        <textarea
-                          rows={3}
-                          value={personal.address}
-                          onChange={(e) =>
-                            setPersonal({ ...personal, address: e.target.value })
-                          }
-                        />
-                        {errors.address && <span className={styles.err}>{errors.address}</span>}
-                      </div>
-                    </div>
-                  )}
-
-                  {step === 1 && (
-                    <div className={styles.formGrid}>
                       <h2>Academic Details</h2>
                       <div className={styles.field}>
                         <label>School / University</label>
@@ -317,7 +257,7 @@ export default function ApplyPage() {
                     </div>
                   )}
 
-                  {step === 2 && (
+                  {step === 1 && (
                     <div className={styles.formGrid}>
                       <h2>Document Upload</h2>
                       <div className={styles.field}>
@@ -339,12 +279,11 @@ export default function ApplyPage() {
                     </div>
                   )}
 
-                  {step === 3 && (
+                  {step === 2 && (
                     <div className={styles.formGrid}>
                       <h2>Review & Submit</h2>
                       <p>Please review your information carefully before submitting.</p>
                       <ul style={{ lineHeight: '1.8' }}>
-                        <li><strong>Personal:</strong> {personal.dob}, {personal.gender}</li>
                         <li><strong>Academic:</strong> {academic.university}, {academic.major}, {academic.gpa}</li>
                         <li><strong>Docs Attached:</strong> {files.grades ? 'Grades, ' : ''} {files.id_card ? 'ID' : ''}</li>
                       </ul>
