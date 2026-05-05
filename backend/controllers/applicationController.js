@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabaseClient.js'
 
 function safeJsonParse(value, fallback = {}) {
   if (!value) return fallback
+  if (typeof value === 'object') return value
   try {
     return JSON.parse(value)
   } catch {
@@ -9,12 +10,77 @@ function safeJsonParse(value, fallback = {}) {
   }
 }
 
+function normalizeDocumentUrls(value) {
+  let docArr = Array.isArray(value) ? value : []
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    docArr = [value]
+  } else if (typeof value === 'string') {
+    try { docArr = JSON.parse(value) } catch { docArr = [] }
+  }
+
+  if (Array.isArray(docArr)) {
+    docArr = docArr.map((doc) => {
+      if (typeof doc === 'string') {
+        try { return JSON.parse(doc) } catch { return null }
+      }
+      return doc
+    }).filter(Boolean)
+  }
+
+  if (!Array.isArray(docArr)) docArr = [docArr]
+
+  const docs = {}
+  docArr.flat(Infinity).forEach((doc) => {
+    if (doc && doc.type && doc.url) {
+      docs[`${doc.type}_url`] = doc.url
+    }
+  })
+
+  return Object.keys(docs).length > 0 ? docs : docArr
+}
+
+function normalizeApplicationRecord(application, scholarship) {
+  const personalInfo = safeJsonParse(application.personal_info, {})
+  const academicInfo = safeJsonParse(application.academic_info, {})
+  const financialInfo = safeJsonParse(academicInfo.financial_info, {})
+  const docs = normalizeDocumentUrls(application.document_urls)
+
+  const combinedAcademic = {
+    ...academicInfo,
+    full_name: personalInfo.full_name || academicInfo.full_name || null,
+    student_id: personalInfo.student_id || academicInfo.student_id || null,
+    department: academicInfo.department || null,
+    current_year: academicInfo.current_year || null,
+    university: academicInfo.university || null,
+    gpa: academicInfo.gpa || null,
+    monthly_household_income: financialInfo.monthly_household_income || academicInfo.monthly_household_income || null,
+    parent_occupation: financialInfo.parent_occupation || academicInfo.parent_occupation || null,
+    dependents: financialInfo.dependents || academicInfo.dependents || null,
+    financial_info: financialInfo
+  }
+
+  return {
+    ...application,
+    scholarships: scholarship || null,
+    personal_info: personalInfo,
+    student_info: personalInfo,
+    academic_info: combinedAcademic,
+    financial_info: financialInfo,
+    document_urls: docs
+  }
+}
+
 export const submitApplication = async (req, res) => {
   try {
     const studentId = req.user.id
     const scholarshipId = req.body.scholarship_id
+    const studentInfo = safeJsonParse(req.body.student_info, {})
     const academicInfo = safeJsonParse(req.body.academic_info, {})
-    const academicInfoDb = Array.isArray(academicInfo) ? academicInfo : [academicInfo]
+    const financialInfo = safeJsonParse(req.body.financial_info, {})
+    const academicInfoDb = {
+      ...academicInfo,
+      financial_info: financialInfo
+    }
 
     if (!scholarshipId) {
       return res.status(400).json({ error: 'Scholarship ID is required.' })
@@ -82,6 +148,7 @@ export const submitApplication = async (req, res) => {
         student_id: studentId,
         scholarship_id: scholarshipId,
         status: 'pending',
+        personal_info: studentInfo,
         academic_info: academicInfoDb,
         document_urls: documentUrls
       })
@@ -125,36 +192,7 @@ export const getMyApplications = async (req, res) => {
     scholarshipById = Object.fromEntries((scholarships || []).map((s) => [s.id, s]))
   }
 
-  const parseField = (val) => {
-    if (!val) return {};
-    let parsed = Array.isArray(val) ? val[0] : val;
-    if (typeof parsed === 'string') {
-      try { parsed = JSON.parse(parsed); } catch (e) { return {}; }
-    }
-    return parsed || {};
-  };
-
-  const applications = rows.map((app) => {
-    let docArr = Array.isArray(app.document_urls) ? app.document_urls : [];
-    if (typeof docArr === 'string') { try { docArr = JSON.parse(docArr); } catch(e) {} }
-    if (Array.isArray(docArr)) {
-        docArr = docArr.map(d => {
-            if (typeof d === 'string') { try { return JSON.parse(d); } catch(e) { return null; } }
-            return d;
-        }).filter(Boolean);
-    }
-    if (!Array.isArray(docArr)) docArr = [docArr];
-
-    return {
-      ...app,
-      scholarships: scholarshipById[app.scholarship_id] || null,
-      created_at: app.created_at || null,
-      updated_at: app.updated_at || null,
-      personal_info: parseField(app.personal_info),
-      academic_info: parseField(app.academic_info),
-      document_urls: docArr
-    }
-  });
+  const applications = rows.map((app) => normalizeApplicationRecord(app, scholarshipById[app.scholarship_id] || null))
 
   return res.status(200).json({ count: applications.length, applications })
 }
@@ -184,34 +222,7 @@ export const getApplicationById = async (req, res) => {
     scholarship = s || null
   }
 
-  const parseField = (val) => {
-    if (!val) return {};
-    let parsed = Array.isArray(val) ? val[0] : val;
-    if (typeof parsed === 'string') {
-      try { parsed = JSON.parse(parsed); } catch (e) { return {}; }
-    }
-    return parsed || {};
-  };
-
-  let docArr = Array.isArray(data.document_urls) ? data.document_urls : [];
-  if (typeof docArr === 'string') { try { docArr = JSON.parse(docArr); } catch(e) {} }
-  if (Array.isArray(docArr)) {
-      docArr = docArr.map(d => {
-          if (typeof d === 'string') { try { return JSON.parse(d); } catch(e) { return null; } }
-          return d;
-      }).filter(Boolean);
-  }
-  if (!Array.isArray(docArr)) docArr = [docArr];
-
-  const application = {
-    ...data,
-    scholarships: scholarship,
-    created_at: data.created_at || null,
-    updated_at: data.updated_at || null,
-    personal_info: parseField(data.personal_info),
-    academic_info: parseField(data.academic_info),
-    document_urls: docArr
-  }
+  const application = normalizeApplicationRecord(data, scholarship)
 
   return res.status(200).json({ application })
 }

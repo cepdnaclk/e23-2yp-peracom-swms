@@ -463,7 +463,6 @@ export default function AdminDashboard() {
                         
                         {/* Academic Info */}
                         <div className={styles.verifyItem}><span className={styles.verifyLabel}>University</span><span className={styles.verifyValue}>{aInfo.university}</span></div>
-                        <div className={styles.verifyItem}><span className={styles.verifyLabel}>Major</span><span className={styles.verifyValue}>{aInfo.major}</span></div>
                         <div className={styles.verifyItem}><span className={styles.verifyLabel}>GPA/CGPA</span><span className={styles.verifyValue}>{aInfo.gpa}</span></div>
                         
                         {/* Docs */}

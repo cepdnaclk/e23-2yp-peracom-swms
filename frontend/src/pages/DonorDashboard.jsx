@@ -445,14 +445,19 @@ export default function DonorDashboard() {
                           </span>
                         </div>
 
-                        {app.document_urls && app.document_urls.grades_url && (
+                        {app.document_urls && app.document_urls.transcript_url && (
                           <div style={{ marginTop: '0.5rem' }}>
-                            <a href={app.document_urls.grades_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', marginRight: '1rem' }}>
-                              View Grades
+                            <a href={app.document_urls.transcript_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', marginRight: '1rem' }}>
+                              View Transcript
                             </a>
-                            {app.document_urls.id_card_url && (
-                              <a href={app.document_urls.id_card_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', marginRight: '1rem' }}>
-                                View ID Card
+                            {app.document_urls.grades_url && (
+                              <a href={app.document_urls.grades_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', marginRight: '1rem' }}>
+                                View Grades
+                              </a>
+                            )}
+                            {app.document_urls.income_certificate_url && (
+                              <a href={app.document_urls.income_certificate_url} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.875rem', fontWeight: '500', marginRight: '1rem' }}>
+                                View Income Certificate
                               </a>
                             )}
                             {app.document_urls.essay_url && (
@@ -467,16 +472,18 @@ export default function DonorDashboard() {
                           <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '0.5rem', border: '1px solid #e2e8f0' }}>
                             <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#334155' }}>Academic Info</h4>
                             <p style={{ margin: '0 0 1rem 0', fontSize: '0.85rem', color: '#475569' }}>
+                              <strong>Full Name:</strong> {app.academic_info.full_name || app.personal_info?.full_name || 'N/A'}<br/>
+                              <strong>Student ID:</strong> {app.academic_info.student_id || app.personal_info?.student_id || 'N/A'}<br/>
+                              <strong>Department:</strong> {app.academic_info.department || 'N/A'}<br/>
+                              <strong>Current Year:</strong> {app.academic_info.current_year || 'N/A'}<br/>
                               <strong>University:</strong> {app.academic_info.university || 'N/A'}<br/>
-                              <strong>Major:</strong> {app.academic_info.major || 'N/A'}<br/>
                               <strong>GPA/Grades:</strong> {app.academic_info.gpa || 'N/A'}
                             </p>
-                            
-                            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#334155' }}>Personal Details</h4>
+                            <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#334155' }}>Financial Info</h4>
                             <p style={{ margin: '0 0 0', fontSize: '0.85rem', whiteSpace: 'pre-wrap', color: '#475569' }}>
-                              <strong>DOB:</strong> {app.personal_info?.dob || 'N/A'}<br/>
-                              <strong>Gender:</strong> {app.personal_info?.gender || 'N/A'}<br/>
-                              <strong>Address:</strong> {app.personal_info?.address || 'N/A'}
+                              <strong>Monthly Household Income:</strong> {app.academic_info.monthly_household_income || 'N/A'}<br/>
+                              <strong>Parent / Guardian Occupation:</strong> {app.academic_info.parent_occupation || 'N/A'}<br/>
+                              <strong>Dependents:</strong> {app.academic_info.dependents || 'N/A'}
                             </p>
                           </div>
                         )}

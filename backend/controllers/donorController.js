@@ -66,7 +66,18 @@ export const getDonorApplications = async (req, res) => {
       return parsed || {};
     };
 
+    const personalInfo = parseField(app.personal_info);
     const academicInfo = parseField(app.academic_info);
+    const financialInfo = parseField(academicInfo.financial_info);
+    const normalizedAcademicInfo = {
+      ...academicInfo,
+      full_name: personalInfo.full_name || academicInfo.full_name || null,
+      student_id: personalInfo.student_id || academicInfo.student_id || null,
+      monthly_household_income: financialInfo.monthly_household_income || academicInfo.monthly_household_income || null,
+      parent_occupation: financialInfo.parent_occupation || academicInfo.parent_occupation || null,
+      dependents: financialInfo.dependents || academicInfo.dependents || null,
+      financial_info: financialInfo
+    };
     
     // Safely structure document URLs flatly into a key-URL dictionary for the UI
     let docArr = Array.isArray(app.document_urls) ? app.document_urls : [];
@@ -95,7 +106,10 @@ export const getDonorApplications = async (req, res) => {
       ...app,
       profiles: profilesMap[app.student_id] || null,
       scholarships: scholarshipsMap[app.scholarship_id] || null,
-      academic_info: academicInfo,
+      personal_info: personalInfo,
+      student_info: personalInfo,
+      academic_info: normalizedAcademicInfo,
+      financial_info: financialInfo,
       document_urls: Object.keys(docs).length > 0 ? docs : docArr
     }
   })
