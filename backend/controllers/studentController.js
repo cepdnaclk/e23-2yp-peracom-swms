@@ -55,12 +55,32 @@ export const getStudentDashboard = async (req, res) => {
     return parsed || {}
   }
 
+  const normalizeApplication = (application) => {
+    const personalInfo = parseField(application.personal_info)
+    const academicInfo = parseField(application.academic_info)
+    const financialInfo = parseField(academicInfo.financial_info)
+
+    return {
+      ...application,
+      personal_info: personalInfo,
+      student_info: personalInfo,
+      academic_info: {
+        ...academicInfo,
+        full_name: personalInfo.full_name || academicInfo.full_name || null,
+        student_id: personalInfo.student_id || academicInfo.student_id || null,
+        monthly_household_income: financialInfo.monthly_household_income || academicInfo.monthly_household_income || null,
+        parent_occupation: financialInfo.parent_occupation || academicInfo.parent_occupation || null,
+        dependents: financialInfo.dependents || academicInfo.dependents || null,
+        financial_info: financialInfo
+      },
+      financial_info: financialInfo,
+      document_urls: Array.isArray(application.document_urls) ? application.document_urls : []
+    }
+  }
+
   const normalizedLatestApplications = latestApplications.map((application) => ({
-    ...application,
+    ...normalizeApplication(application),
     scholarships: latestScholarshipById[application.scholarship_id] || null,
-    personal_info: parseField(application.personal_info),
-    academic_info: parseField(application.academic_info),
-    document_urls: Array.isArray(application.document_urls) ? application.document_urls : []
   }))
 
   const summary = {
