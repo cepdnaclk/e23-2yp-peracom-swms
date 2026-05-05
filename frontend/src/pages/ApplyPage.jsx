@@ -7,14 +7,6 @@ import styles from './ApplyPage.module.css';
 const STEPS = ['Personal Info', 'Academic Details', 'Document Upload', 'Review & Submit'];
 
 export default function ApplyPage() {
-    useEffect(() => {
-      if (isSubmitted) {
-        const timer = setTimeout(() => {
-          navigate('/dashboard');
-        }, 2000); // 2 seconds
-        return () => clearTimeout(timer);
-      }
-    }, [isSubmitted, navigate]);
   const { id } = useParams();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
@@ -22,7 +14,18 @@ export default function ApplyPage() {
   const [loadingTop, setLoadingTop] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    // Redirect to dashboard a short while after successful submission
+    if (isSubmitted) {
+      const timer = setTimeout(() => {
+        navigate('/dashboard');
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSubmitted, navigate]);
 
   const [personal, setPersonal] = useState({
     dob: '',
@@ -40,17 +43,34 @@ export default function ApplyPage() {
   useEffect(() => {
     async function loadData() {
       setLoadingTop(true);
+      setFetchError(null);
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
-        
+        // If user is not authenticated, redirect to login so they can sign in before applying
+        if (!session?.access_token) {
+          setFetchError('You must be logged in to apply. Redirecting to login...');
+          setLoadingTop(false);
+          // small delay so user sees message briefly, then redirect
+          setTimeout(() => navigate('/login'), 700);
+          return;
+        }
+
+        const headers = { Authorization: `Bearer ${session.access_token}` };
+
         const res = await fetch(`/api/scholarships/${id}`, { headers });
         if (res.ok) {
           const payload = await res.json();
-          setScholarship(payload.scholarship);
+          if (payload && payload.scholarship) {
+            setScholarship(payload.scholarship);
+          } else {
+            setFetchError('Scholarship not found.');
+          }
+        } else {
+          setFetchError('Failed to fetch scholarship.');
         }
       } catch (err) {
         console.error('Failed to load scholarship for application', err);
+        setFetchError('Failed to load scholarship for application');
       } finally {
         setLoadingTop(false);
       }
@@ -155,206 +175,216 @@ export default function ApplyPage() {
   return (
     <Layout>
       <div className={styles.page}>
-        <button
-          className={styles.back}
-          onClick={() => navigate(`/scholarships/${id}`)}
-        >
-          ← Back
-        </button>
-        <h1>Apply for {scholarship?.title}</h1>
-
-        {isSubmitted ? (
-          <div className={styles.formCard} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
-            <div style={{ fontSize: '4rem', color: '#10b981', marginBottom: '1rem' }}>✅</div>
-            <h2>Application Submitted Successfully!</h2>
-            <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
-              Your application for <strong>{scholarship?.title}</strong> has been received and is now pending review.<br/>
-              Redirecting to your dashboard...
-            </p>
-          </div>
+        {loadingTop ? (
+          <div style={{ padding: '2rem' }}>Loading scholarship...</div>
+        ) : fetchError ? (
+          <div style={{ color: 'red', padding: '2rem' }}>{fetchError}</div>
+        ) : !scholarship ? (
+          <div style={{ color: 'red', padding: '2rem' }}>Scholarship not found.</div>
         ) : (
           <>
-            <div className={styles.stepper}>
-              {STEPS.map((label, i) => (
-                <div
-                  key={i}
-                  className={`${styles.step} ${i === step ? styles.active : ''} ${i < step ? styles.done : ''}`}
-                >
-                  <div className={styles.stepCircle}>{i < step ? '✓' : i + 1}</div>
-                  <span>{label}</span>
-                  {i < STEPS.length - 1 && <div className={styles.stepLine} />}
-                </div>
-              ))}
-            </div>
+            <button
+              className={styles.back}
+              onClick={() => navigate(`/scholarships/${id}`)}
+            >
+              ← Back
+            </button>
+            <h1>Apply for {scholarship.title}</h1>
 
-        <div className={styles.formCard}>
-          {step === 0 && (
-            <div className={styles.formGrid}>
-              <h2>Personal Information</h2>
-              <div className={styles.field}>
-                <label>Date of Birth</label>
-                <input
-                  type="date"
-                  value={personal.dob}
-                  onChange={(e) => setPersonal({ ...personal, dob: e.target.value })}
-                />
-                {errors.dob && <span className={styles.err}>{errors.dob}</span>}
+            {isSubmitted ? (
+              <div className={styles.formCard} style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+                <div style={{ fontSize: '4rem', color: '#10b981', marginBottom: '1rem' }}>✅</div>
+                <h2>Application Submitted Successfully!</h2>
+                <p style={{ color: '#64748b', fontSize: '1.1rem', marginTop: '0.5rem', marginBottom: '2rem' }}>
+                  Your application for <strong>{scholarship.title}</strong> has been received and is now pending review.<br/>
+                  Redirecting to your dashboard...
+                </p>
               </div>
-
-              <div className={styles.field}>
-                <label>Gender</label>
-                <select
-                  value={personal.gender}
-                  onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '0.375rem',
-                    backgroundColor: 'white'
-                  }}
-                >
-                  <option value="">Select Gender...</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
-                {errors.gender && <span className={styles.err}>{errors.gender}</span>}
-              </div>
-
-              <div className={`${styles.field} ${styles.fullWidth}`}>
-                <label>Address</label>
-                <textarea
-                  rows={3}
-                  value={personal.address}
-                  onChange={(e) =>
-                    setPersonal({ ...personal, address: e.target.value })
-                  }
-                />
-                {errors.address && <span className={styles.err}>{errors.address}</span>}
-              </div>
-            </div>
-          )}
-
-          {step === 1 && (
-            <div className={styles.formGrid}>
-              <h2>Academic Details</h2>
-              <div className={styles.field}>
-                <label>School / University</label>
-                <select
-                  value={academic.university}
-                  onChange={(e) => setAcademic({ ...academic, university: e.target.value })}
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', backgroundColor: 'white' }}
-                >
-                  <option value="">Select University...</option>
-                  <option value="University of Colombo">University of Colombo</option>
-                  <option value="University of Peradeniya">University of Peradeniya</option>
-                  <option value="University of Moratuwa">University of Moratuwa</option>
-                  <option value="University of Kelaniya">University of Kelaniya</option>
-                  <option value="University of Sri Jayewardenepura">University of Sri Jayewardenepura</option>
-                  <option value="University of Ruhuna">University of Ruhuna</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.university && <span className={styles.err}>{errors.university}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label>Major / Program</label>
-                <select
-                  value={academic.major}
-                  onChange={(e) => setAcademic({ ...academic, major: e.target.value })}
-                  style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', backgroundColor: 'white' }}
-                >
-                  <option value="">Select Major...</option>
-                  <option value="Computer engineering">Computer engineering</option>
-                  <option value="Civil engineering">Civil engineering</option>
-                  <option value="Industrial and manufacturing engineering">Industrial and manufacturing engineering</option>
-                  <option value="Mechanical engineering">Mechanical engineering</option>
-                  <option value="Electrical engineering">Electrical engineering</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.major && <span className={styles.err}>{errors.major}</span>}
-              </div>
-
-              <div className={styles.field}>
-                <label>GPA</label>
-                <input
-                  type="text"
-                  value={academic.gpa}
-                  onChange={(e) => setAcademic({ ...academic, gpa: e.target.value })}
-                />
-                {errors.gpa && <span className={styles.err}>{errors.gpa}</span>}
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className={styles.formGrid}>
-              <h2>Document Upload</h2>
-              <div className={styles.field}>
-                <label>Recent Grades (PDF/Image) *</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('grades', e.target.files[0])} />
-                {errors.grades && <span className={styles.err}>{errors.grades}</span>}
-                {fileErrors.grades && <span className={styles.err}>{fileErrors.grades}</span>}
-              </div>
-              <div className={styles.field}>
-                <label>ID Card (PDF/Image) *</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('id_card', e.target.files[0])} />
-                {errors.id_card && <span className={styles.err}>{errors.id_card}</span>}
-                {fileErrors.id_card && <span className={styles.err}>{fileErrors.id_card}</span>}
-              </div>
-              <div className={styles.field}>
-                <label>Essay (Optional)</label>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('essay', e.target.files[0])} />
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className={styles.formGrid}>
-              <h2>Review & Submit</h2>
-              <p>Please review your information carefully before submitting.</p>
-              <ul style={{ lineHeight: '1.8' }}>
-                <li><strong>Personal:</strong> {personal.dob}, {personal.gender}</li>
-                <li><strong>Academic:</strong> {academic.university}, {academic.major}, {academic.gpa}</li>
-                <li><strong>Docs Attached:</strong> {files.grades ? 'Grades, ' : ''} {files.id_card ? 'ID' : ''}</li>
-              </ul>
-            </div>
-          )}
-
-          <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>
-            {step > 0 && (
-              <button 
-                className={styles.secondaryBtn} 
-                onClick={() => setStep(s => s - 1)}
-                style={{ padding: '0.75rem 1.5rem', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                Back
-              </button>
-            )}
-            
-            {step < STEPS.length - 1 ? (
-              <button 
-                className={styles.primaryBtn} 
-                onClick={nextStep}
-                style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                Next
-              </button>
             ) : (
-              <button 
-                className={styles.primaryBtn} 
-                onClick={handleSubmit} 
-                disabled={submitLoading}
-                style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
-              >
-                {submitLoading ? 'Submitting...' : 'Submit Application'}
-              </button>
+              <>
+                <div className={styles.stepper}>
+                  {STEPS.map((label, i) => (
+                    <div
+                      key={i}
+                      className={`${styles.step} ${i === step ? styles.active : ''} ${i < step ? styles.done : ''}`}
+                    >
+                      <div className={styles.stepCircle}>{i < step ? '✓' : i + 1}</div>
+                      <span>{label}</span>
+                      {i < STEPS.length - 1 && <div className={styles.stepLine} />}
+                    </div>
+                  ))}
+                </div>
+
+                <div className={styles.formCard}>
+                  {step === 0 && (
+                    <div className={styles.formGrid}>
+                      <h2>Personal Information</h2>
+                      <div className={styles.field}>
+                        <label>Date of Birth</label>
+                        <input
+                          type="date"
+                          value={personal.dob}
+                          onChange={(e) => setPersonal({ ...personal, dob: e.target.value })}
+                        />
+                        {errors.dob && <span className={styles.err}>{errors.dob}</span>}
+                      </div>
+
+                      <div className={styles.field}>
+                        <label>Gender</label>
+                        <select
+                          value={personal.gender}
+                          onChange={(e) => setPersonal({ ...personal, gender: e.target.value })}
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '0.375rem',
+                            backgroundColor: 'white'
+                          }}
+                        >
+                          <option value="">Select Gender...</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                          <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
+                        {errors.gender && <span className={styles.err}>{errors.gender}</span>}
+                      </div>
+
+                      <div className={`${styles.field} ${styles.fullWidth}`}>
+                        <label>Address</label>
+                        <textarea
+                          rows={3}
+                          value={personal.address}
+                          onChange={(e) =>
+                            setPersonal({ ...personal, address: e.target.value })
+                          }
+                        />
+                        {errors.address && <span className={styles.err}>{errors.address}</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 1 && (
+                    <div className={styles.formGrid}>
+                      <h2>Academic Details</h2>
+                      <div className={styles.field}>
+                        <label>School / University</label>
+                        <select
+                          value={academic.university}
+                          onChange={(e) => setAcademic({ ...academic, university: e.target.value })}
+                          style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', backgroundColor: 'white' }}
+                        >
+                          <option value="">Select University...</option>
+                          <option value="University of Colombo">University of Colombo</option>
+                          <option value="University of Peradeniya">University of Peradeniya</option>
+                          <option value="University of Moratuwa">University of Moratuwa</option>
+                          <option value="University of Kelaniya">University of Kelaniya</option>
+                          <option value="University of Sri Jayewardenepura">University of Sri Jayewardenepura</option>
+                          <option value="University of Ruhuna">University of Ruhuna</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {errors.university && <span className={styles.err}>{errors.university}</span>}
+                      </div>
+
+                      <div className={styles.field}>
+                        <label>Major / Program</label>
+                        <select
+                          value={academic.major}
+                          onChange={(e) => setAcademic({ ...academic, major: e.target.value })}
+                          style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '0.375rem', backgroundColor: 'white' }}
+                        >
+                          <option value="">Select Major...</option>
+                          <option value="Computer engineering">Computer engineering</option>
+                          <option value="Civil engineering">Civil engineering</option>
+                          <option value="Industrial and manufacturing engineering">Industrial and manufacturing engineering</option>
+                          <option value="Mechanical engineering">Mechanical engineering</option>
+                          <option value="Electrical engineering">Electrical engineering</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {errors.major && <span className={styles.err}>{errors.major}</span>}
+                      </div>
+
+                      <div className={styles.field}>
+                        <label>GPA</label>
+                        <input
+                          type="text"
+                          value={academic.gpa}
+                          onChange={(e) => setAcademic({ ...academic, gpa: e.target.value })}
+                        />
+                        {errors.gpa && <span className={styles.err}>{errors.gpa}</span>}
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 2 && (
+                    <div className={styles.formGrid}>
+                      <h2>Document Upload</h2>
+                      <div className={styles.field}>
+                        <label>Recent Grades (PDF/Image) *</label>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('grades', e.target.files[0])} />
+                        {errors.grades && <span className={styles.err}>{errors.grades}</span>}
+                        {fileErrors.grades && <span className={styles.err}>{fileErrors.grades}</span>}
+                      </div>
+                      <div className={styles.field}>
+                        <label>ID Card (PDF/Image) *</label>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('id_card', e.target.files[0])} />
+                        {errors.id_card && <span className={styles.err}>{errors.id_card}</span>}
+                        {fileErrors.id_card && <span className={styles.err}>{fileErrors.id_card}</span>}
+                      </div>
+                      <div className={styles.field}>
+                        <label>Essay (Optional)</label>
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={e => handleFileChange('essay', e.target.files[0])} />
+                      </div>
+                    </div>
+                  )}
+
+                  {step === 3 && (
+                    <div className={styles.formGrid}>
+                      <h2>Review & Submit</h2>
+                      <p>Please review your information carefully before submitting.</p>
+                      <ul style={{ lineHeight: '1.8' }}>
+                        <li><strong>Personal:</strong> {personal.dob}, {personal.gender}</li>
+                        <li><strong>Academic:</strong> {academic.university}, {academic.major}, {academic.gpa}</li>
+                        <li><strong>Docs Attached:</strong> {files.grades ? 'Grades, ' : ''} {files.id_card ? 'ID' : ''}</li>
+                      </ul>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>
+                    {step > 0 && (
+                      <button 
+                        className={styles.secondaryBtn} 
+                        onClick={() => setStep(s => s - 1)}
+                        style={{ padding: '0.75rem 1.5rem', background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '0.375rem', cursor: 'pointer' }}
+                      >
+                        Back
+                      </button>
+                    )}
+                    
+                    {step < STEPS.length - 1 ? (
+                      <button 
+                        className={styles.primaryBtn} 
+                        onClick={nextStep}
+                        style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                      >
+                        Next
+                      </button>
+                    ) : (
+                      <button 
+                        className={styles.primaryBtn} 
+                        onClick={handleSubmit} 
+                        disabled={submitLoading}
+                        style={{ padding: '0.75rem 1.5rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: '0.375rem', cursor: 'pointer' }}
+                      >
+                        {submitLoading ? 'Submitting...' : 'Submit Application'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-        </div>
-        </>
+          </>
         )}
       </div>
     </Layout>
