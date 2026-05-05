@@ -5,6 +5,7 @@ import { verifyToken, requireRole } from '../middleware/authMiddleware.js'
 const router = express.Router()
 
 router.use(verifyToken)
+
 router.use(requireRole('student'))
 
 router.get('/dashboard', getStudentDashboard)

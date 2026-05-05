@@ -21,7 +21,7 @@ router.patch('/users/:id/status', updateUserApprovalStatus)
 router.get('/scholarships/pending', getPendingScholarships)
 router.patch('/scholarships/:id/status', updateScholarshipStatus)
 
-// FR3 - Application Review & Announcements
+//  Application Review & Announcements
 router.get('/applications/pending', getPendingApplications)
 router.patch('/applications/:id/status', updateApplicationStatus)
 router.post('/announcements', createAnnouncement)
