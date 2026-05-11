@@ -42,21 +42,12 @@ function normalizeDocumentUrls(value) {
 function normalizeApplicationRecord(application, scholarship) {
   const personalInfo = safeJsonParse(application.personal_info, {})
   const academicInfo = safeJsonParse(application.academic_info, {})
-  const financialInfo = safeJsonParse(academicInfo.financial_info, {})
   const docs = normalizeDocumentUrls(application.document_urls)
 
   const combinedAcademic = {
-    ...academicInfo,
     full_name: personalInfo.full_name || academicInfo.full_name || null,
     student_id: personalInfo.student_id || academicInfo.student_id || null,
-    department: academicInfo.department || null,
     current_year: academicInfo.current_year || null,
-    university: academicInfo.university || null,
-    gpa: academicInfo.gpa || null,
-    monthly_household_income: financialInfo.monthly_household_income || academicInfo.monthly_household_income || null,
-    parent_occupation: financialInfo.parent_occupation || academicInfo.parent_occupation || null,
-    dependents: financialInfo.dependents || academicInfo.dependents || null,
-    financial_info: financialInfo
   }
 
   return {
@@ -65,7 +56,6 @@ function normalizeApplicationRecord(application, scholarship) {
     personal_info: personalInfo,
     student_info: personalInfo,
     academic_info: combinedAcademic,
-    financial_info: financialInfo,
     document_urls: docs
   }
 }
@@ -75,11 +65,10 @@ export const submitApplication = async (req, res) => {
     const studentId = req.user.id
     const scholarshipId = req.body.scholarship_id
     const studentInfo = safeJsonParse(req.body.student_info, {})
-    const academicInfo = safeJsonParse(req.body.academic_info, {})
-    const financialInfo = safeJsonParse(req.body.financial_info, {})
     const academicInfoDb = {
-      ...academicInfo,
-      financial_info: financialInfo
+      full_name: studentInfo.full_name,
+      student_id: studentInfo.student_id,
+      current_year: studentInfo.current_year,
     }
 
     if (!scholarshipId) {
@@ -110,15 +99,17 @@ export const submitApplication = async (req, res) => {
 
     const files = req.files || {}
     const documentUrls = []
-
-    for (const [key, fileList] of Object.entries(files)) {
+    // Only accept id_card, income_certificate, bank_account
+    const requiredDocs = ['id_card', 'income_certificate', 'bank_account']
+    for (const key of requiredDocs) {
+      const fileList = files[key]
       const file = fileList?.[0]
-      if (!file) continue
-
+      if (!file) {
+        return res.status(400).json({ error: `Missing required document: ${key}` })
+      }
       const fileExt = file.originalname.split('.').pop()
       const fileName = `${Date.now()}_${key}.${fileExt}`
       const filePath = `applications/${studentId}/${scholarshipId}/${fileName}`
-
       const { error: uploadError } = await supabaseAdmin
         .storage
         .from('documents')
@@ -126,16 +117,13 @@ export const submitApplication = async (req, res) => {
           contentType: file.mimetype,
           upsert: false
         })
-
       if (uploadError) {
         return res.status(500).json({ error: 'File upload failed: ' + uploadError.message })
       }
-
       const { data: urlData } = supabaseAdmin
         .storage
         .from('documents')
         .getPublicUrl(filePath)
-
       documentUrls.push({
         type: key,
         url: urlData.publicUrl

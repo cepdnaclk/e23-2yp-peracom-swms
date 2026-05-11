@@ -7,7 +7,10 @@ import {
   updateScholarshipStatus,
   getPendingApplications,
   updateApplicationStatus,
-  createAnnouncement
+  createAnnouncement,
+  getAnnouncements,
+  updateAnnouncement,
+  deleteAnnouncement
 } from '../controllers/adminController.js'
 import { verifyToken, requireRole } from '../middleware/authMiddleware.js'
 
@@ -24,6 +27,9 @@ router.patch('/scholarships/:id/status', updateScholarshipStatus)
 //  Application Review & Announcements
 router.get('/applications/pending', getPendingApplications)
 router.patch('/applications/:id/status', updateApplicationStatus)
+router.get('/announcements', getAnnouncements)
 router.post('/announcements', createAnnouncement)
+router.patch('/announcements/:id', updateAnnouncement)
+router.delete('/announcements/:id', deleteAnnouncement)
 
 export default router

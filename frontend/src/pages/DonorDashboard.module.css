@@ -306,18 +306,18 @@
 }
 
 .statusPending {
-  background: #fff4d6;
-  color: #b45309;
+  background: #e0f2fe;
+  color: #0ea5e9;
 }
 
 .statusPublished {
   background: #dcfce7;
-  color: #15803d;
+  color: #22c55e;
 }
 
 .statusRejected {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #ef4444;
 }
 
 .itemMeta {
@@ -388,9 +388,8 @@
 /* Tabs */
 .tabs {
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-  border-bottom: 2px solid #e2e8f0;
+  gap: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 .tab {
   padding: 0.5rem 1rem;

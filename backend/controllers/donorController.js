@@ -24,7 +24,7 @@ export const getDonorApplications = async (req, res) => {
     .select(`*`)
     .in('scholarship_id', schIds)
     // Only show them apps the admin has forwarded (admin_approved), or apps they have already processed
-    .in('status', ['admin_approved', 'awarded', 'rejected'])
+    .in('status', ['pending', 'under_review', 'admin_approved', 'awarded', 'rejected'])
     .order('id', { ascending: true })
 
   if (error) {

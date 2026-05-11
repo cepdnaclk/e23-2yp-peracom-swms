@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import StudentDashboard from './pages/StudentDashboard'
+import AnnouncementsPage from './pages/AnnouncementsPage'
 import ScholarshipsPublic from './pages/ScholarshipsPublic'
 import ScholarshipsPage from './pages/ScholarshipsPage'
 import ScholarshipDetail from './pages/ScholarshipDetail'
@@ -25,6 +26,8 @@ export default function App() {
           <Route path="/scholarships-public" element={<ScholarshipsPublic />} />
 
           <Route path="/dashboard"        element={<ProtectedRoute allowedRoles={['student']}><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/announcements"    element={<ProtectedRoute allowedRoles={['student']}><AnnouncementsPage /></ProtectedRoute>} />
+          <Route path="/announcements/:id" element={<ProtectedRoute allowedRoles={['student']}><AnnouncementsPage /></ProtectedRoute>} />
           <Route path="/scholarships"     element={<ProtectedRoute allowedRoles={['student']}><ScholarshipsPage /></ProtectedRoute>} />
           <Route path="/scholarships/:id" element={<ProtectedRoute allowedRoles={['student']}><ScholarshipDetail /></ProtectedRoute>} />
           <Route path="/apply/:id"        element={<ProtectedRoute allowedRoles={['student']}><ApplyPage /></ProtectedRoute>} />
