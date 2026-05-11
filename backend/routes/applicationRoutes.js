@@ -1,7 +1,9 @@
 import express from 'express'
 import multer from 'multer'
 import { submitApplication, getMyApplications, getApplicationById, hasAppliedForScholarship } from '../controllers/applicationController.js'
+import { resubmitApplication } from '../controllers/resubmitController.js'
 import { verifyToken, requireRole } from '../middleware/authMiddleware.js'
+
 
 const router = express.Router()
 
@@ -22,11 +24,18 @@ router.use(verifyToken)
 router.use(requireRole('student'))
 
 router.post('/submit', upload.fields([
-  { name: 'grades', maxCount: 1 },
   { name: 'id_card', maxCount: 1 },
-  { name: 'essay', maxCount: 1 }
-  
+  { name: 'income_certificate', maxCount: 1 },
+  { name: 'bank_account', maxCount: 1 }
 ]), submitApplication)
+
+// Resubmit only rejected documents
+router.patch('/resubmit/:applicationId', upload.fields([
+  { name: 'id_card', maxCount: 1 },
+  { name: 'income_certificate', maxCount: 1 },
+  { name: 'bank_account', maxCount: 1 }
+]), resubmitApplication)
+
 router.get('/', getMyApplications)
 router.get('/has-applied/:scholarshipId', hasAppliedForScholarship)
 router.get('/:id', getApplicationById)

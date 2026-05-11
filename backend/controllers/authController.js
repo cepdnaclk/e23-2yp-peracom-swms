@@ -137,13 +137,15 @@ export const logoutUser = async (req, res) => {
 export const getMe = async (req, res) => {
   const { data: profile, error } = await supabaseAdmin
     .from('profiles')
-    .select('*')
+    // Explicit fields so frontend role checks are consistent
+    .select('id, email, full_name, role, status, extra_info')
     .eq('id', req.user.id)
     .single()
 
-  if (error) {
+  if (error || !profile) {
     return res.status(404).json({ error: 'Profile not found.' })
   }
 
   return res.status(200).json({ user: profile })
 }
+

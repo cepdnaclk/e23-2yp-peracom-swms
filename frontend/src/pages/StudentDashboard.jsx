@@ -39,6 +39,7 @@ export default function StudentDashboard() {
   })
   const [openScholarshipsCount, setOpenScholarshipsCount] = useState(0)
   const [announcements, setAnnouncements] = useState([])
+  const [announcementUnreadCount, setAnnouncementUnreadCount] = useState(0)
   const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [openScholarships, setOpenScholarships] = useState([])
@@ -90,6 +91,7 @@ export default function StudentDashboard() {
       setOpenScholarshipsCount(payload.open_scholarships_count || 0);
       setOpenScholarships(payload.open_scholarships || []);
       setAnnouncements(payload.announcements || []);
+      setAnnouncementUnreadCount(payload.announcements_unread_count || 0);
       setNotifications(payload.notifications || []);
       
     } catch (e) {
@@ -230,13 +232,46 @@ export default function StudentDashboard() {
           </div>
 
           <div className={styles.panel}>
-            <h2 className={styles.panelTitle}>Latest Announcements</h2>
+            <h2 className={styles.panelTitle}>Latest Announcements{announcementUnreadCount > 0 ? ` (${announcementUnreadCount} unread)` : ''}</h2>
             <div className={styles.annList}>
               {loading ? <p className={styles.empty}>Loading...</p> :
                 announcements.length === 0 ? <p className={styles.empty}>No announcements yet.</p> :
                   announcements.map(a => (
-                    <div key={a.id} className={styles.annItem}>
-                      <div className={styles.annName}>{a.title}</div>
+                    <div
+                      key={a.id}
+                      className={styles.annItem}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => navigate(`/announcements/${a.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          navigate(`/announcements/${a.id}`)
+                        }
+                      }}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                        <div className={styles.annName}>{a.title}</div>
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                          {a.is_pinned && <span className={styles.statusBadge} style={{ background: '#dbeafe', color: '#1d4ed8' }}>Pinned</span>}
+                          {a.priority && a.priority !== 'normal' && <span className={styles.actionBadge} style={{ background: a.priority === 'urgent' ? '#fee2e2' : '#fef3c7', color: a.priority === 'urgent' ? '#b91c1c' : '#b45309' }}>{a.priority}</span>}
+                          <span className={styles.statusBadge} style={{ background: a.is_read ? '#ecfdf3' : '#fff4d6', color: a.is_read ? '#047857' : '#b45309' }}>
+                            {a.is_read ? 'Read' : 'Unread'}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className={styles.appDetailBtn}
+                          style={{ marginTop: 0, whiteSpace: 'nowrap' }}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/announcements/${a.id}`)
+                          }}
+                        >
+                          Open
+                        </button>
+                      </div>
                       <div className={styles.annDate}>{new Date(a.created_at).toLocaleDateString('en-GB')}</div>
                       <div className={styles.annBody}>{a.content}</div>
                     </div>

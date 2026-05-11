@@ -4,7 +4,7 @@ export const getStudentDashboard = async (req, res) => {
   const studentId = req.user.id
 
   const nowIso = new Date().toISOString()
-  const [applicationsResult, latestAppsResult, announcementsResult, notificationsResult, openCountResult, openScholarshipsResult] = await Promise.all([
+  const [applicationsResult, latestAppsResult, announcementsResult, announcementReadsResult, announcementsCountResult, notificationsResult, openCountResult, openScholarshipsResult] = await Promise.all([
     supabaseAdmin.from('applications').select('status, scholarship_id').eq('student_id', studentId),
     supabaseAdmin
       .from('applications')
@@ -12,7 +12,19 @@ export const getStudentDashboard = async (req, res) => {
       .eq('student_id', studentId)
       .order('created_at', { ascending: false })
       .limit(4),
-    supabaseAdmin.from('announcements').select('id, title, content, created_at').order('created_at', { ascending: false }).limit(3),
+    supabaseAdmin
+      .from('announcements')
+      .select('id, title, content, created_at')
+      .order('created_at', { ascending: false })
+      .limit(3),
+    supabaseAdmin
+      .from('announcement_reads')
+      .select('announcement_id')
+      .eq('user_id', studentId),
+    supabaseAdmin
+      .from('announcements')
+      .select('id', { count: 'exact', head: true })
+      .or(`expires_at.is.null,expires_at.gte.${nowIso}`),
     supabaseAdmin.from('notifications').select('id, message, is_read, created_at').eq('user_id', studentId).order('created_at', { ascending: false }).limit(4),
     supabaseAdmin
       .from('scholarships')
@@ -30,6 +42,8 @@ export const getStudentDashboard = async (req, res) => {
 
   const applications = applicationsResult.data || []
   const latestApplications = latestAppsResult.data || []
+  const announcementReads = announcementReadsResult.data || []
+  const announcementReadIds = new Set(announcementReads.map((row) => String(row.announcement_id)))
   const latestScholarshipIds = [...new Set(latestApplications.map((application) => application.scholarship_id).filter(Boolean))]
   let latestScholarshipById = {}
 
@@ -83,6 +97,11 @@ export const getStudentDashboard = async (req, res) => {
     scholarships: latestScholarshipById[application.scholarship_id] || null,
   }))
 
+  const announcements = (announcementsResult.data || []).map((announcement) => ({
+    ...announcement,
+    is_read: announcementReadIds.has(String(announcement.id))
+  }))
+
   const summary = {
     total: applications.length,
     pending: applications.filter(a => a.status === 'pending').length,
@@ -100,7 +119,8 @@ export const getStudentDashboard = async (req, res) => {
     application_summary: summary,
     latest_applications: normalizedLatestApplications,
     all_applied_scholarship_ids: allAppliedScholarshipIds,
-    announcements: announcementsResult.data || [],
+    announcements,
+    announcements_unread_count: Math.max((announcementsCountResult.count || 0) - announcementReadIds.size, 0),
     notifications: notificationsResult.data || [],
     unread_count: (notificationsResult.data || []).length,
     open_scholarships_count: openCountResult.count || 0,
@@ -136,4 +156,86 @@ export const markNotificationRead = async (req, res) => {
   }
 
   return res.status(200).json({ message: 'Notification marked as read.' })
+}
+
+export const getStudentAnnouncements = async (req, res) => {
+  const all = String(req.query.all || '').toLowerCase() === 'true'
+  const studentId = req.user.id
+
+  const query = supabaseAdmin
+    .from('announcements')
+    .select('id, title, content, created_at', { count: 'exact' })
+    .order('created_at', { ascending: false })
+
+  const { data: readRows } = await supabaseAdmin
+    .from('announcement_reads')
+    .select('announcement_id')
+    .eq('user_id', studentId)
+
+  const readIds = new Set((readRows || []).map((row) => String(row.announcement_id)))
+
+  if (!all) {
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1)
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '10', 10), 1), 50)
+    const from = (page - 1) * limit
+    const to = from + limit - 1
+
+    const { data, error, count } = await query.range(from, to)
+
+    if (error) {
+      return res.status(500).json({ error: 'Failed to fetch announcements.' })
+    }
+
+    return res.status(200).json({
+      page,
+      limit,
+      total: count || 0,
+      total_pages: Math.max(Math.ceil((count || 0) / limit), 1),
+      announcements: (data || []).map((announcement) => ({
+        ...announcement,
+        is_read: readIds.has(String(announcement.id))
+      }))
+    })
+  }
+
+  const { data, error, count } = await query
+
+  if (error) {
+    return res.status(500).json({ error: 'Failed to fetch announcements.' })
+  }
+
+  return res.status(200).json({
+    total: count || 0,
+    total_pages: 1,
+    announcements: (data || []).map((announcement) => ({
+      ...announcement,
+      is_read: readIds.has(String(announcement.id))
+    }))
+  })
+}
+
+export const markAnnouncementRead = async (req, res) => {
+  const { id } = req.params
+  const userId = req.user.id
+
+  if (!id) {
+    return res.status(400).json({ error: 'Announcement ID is required.' })
+  }
+
+  const { error } = await supabaseAdmin
+    .from('announcement_reads')
+    .upsert(
+      {
+        announcement_id: id,
+        user_id: userId,
+        read_at: new Date().toISOString()
+      },
+      { onConflict: 'announcement_id,user_id' }
+    )
+
+  if (error) {
+    return res.status(500).json({ error: 'Failed to record announcement read.' })
+  }
+
+  return res.status(200).json({ message: 'Announcement marked as read.' })
 }

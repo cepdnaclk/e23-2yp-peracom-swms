@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import Layout from '../components/dashboard/Layout'
+import DocumentsPreview from '../components/dashboard/DocumentsPreview'
 import { supabase } from '../services/supabaseClient'
 import styles from './ApplicationsPage.module.css'
 
@@ -110,10 +111,12 @@ export default function ApplicationsPage() {
         ) : (
           <div className={styles.list}>
             {visibleApplications.map(app => {
-              const config = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.pending
-              const isRejected = app.status === 'rejected'
-              const progressIdx = getProgressIndex(app.status)
-              const isSelected = String(selected) === String(app.id)
+
+              const config = STATUS_CONFIG[app.status] ?? STATUS_CONFIG.pending;
+              const isRejected = app.status === 'rejected';
+              const progressIdx = getProgressIndex(app.status);
+              const isSelected = String(selected) === String(app.id);
+              const canResubmit = isRejected && (app.resubmission_count ?? 0) < 3;
 
               return (
                 <div key={app.id} className={styles.card} id={`application-${app.id}`} style={isSelected ? { outline: '2px solid #2563eb', outlineOffset: '2px' } : undefined}>
@@ -131,8 +134,8 @@ export default function ApplicationsPage() {
                   {!isRejected ? (
                     <div className={styles.timeline}>
                       {STATUS_STEPS.map((s, i) => {
-                        const done = i <= progressIdx
-                        const active = i === progressIdx
+                        const done = i <= progressIdx;
+                        const active = i === progressIdx;
                         return (
                           <div key={s} className={styles.timelineStep}>
                             <div className={`${styles.dot} ${done ? styles.dotDone : ''} ${active ? styles.dotActive : ''}`}>
@@ -145,20 +148,44 @@ export default function ApplicationsPage() {
                               <div className={`${styles.line} ${i < progressIdx ? styles.lineDone : ''}`} />
                             )}
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   ) : (
-                    <div className={styles.rejectedBar}>❌ Application was not approved</div>
-                  )}
-
-                  {app.admin_feedback && (
-                    <div className={styles.feedback}>
-                      <strong>💬 Admin Feedback:</strong>
-                      <p>{app.admin_feedback}</p>
+                    <div className={styles.rejectedBar}>
+                      ❌ Application was not approved
+                      {app.rejection_reason && (
+                        <div style={{ marginTop: '0.5rem', color: '#b91c1c', fontWeight: 500 }}>
+                          <strong>Reason:</strong> {app.rejection_reason}
+                        </div>
+                      )}
+                      <div style={{ marginTop: '0.5rem', color: '#b91c1c', fontWeight: 400 }}>
+                        {canResubmit
+                          ? `You can edit and resubmit this application. (${(app.resubmission_count ?? 0)}/3 resubmissions used)`
+                          : 'Resubmission limit reached.'}
+                      </div>
+                      {canResubmit && (
+                        <button
+                          className={styles.detailBtn}
+                          style={{ marginTop: '0.75rem', background: '#2563eb', color: 'white', border: 'none', borderRadius: 4, padding: '0.5rem 1.25rem', fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => navigate(`/apply/${app.scholarship_id}?editAppId=${app.id}`)}
+                        >
+                          Edit & Resubmit
+                        </button>
+                      )}
+                      <div style={{ marginTop: '0.75rem', color: '#64748b', fontSize: '0.95em' }}>
+                        <strong>Tips:</strong> Make sure your documents are clear, complete, and match the requirements. Check the feedback above for what to fix.
+                      </div>
                     </div>
                   )}
-                  
+
+                  {app.rejection_reason && isRejected && (
+                    <div className={styles.feedback}>
+                      <strong>💬 Admin Feedback:</strong>
+                      <p>{app.rejection_reason}</p>
+                    </div>
+                  )}
+
                   {app.donor_feedback && (
                     <div className={styles.feedback} style={{ marginTop: '0.5rem', background: '#f5f3ff', borderLeftColor: '#8b5cf6' }}>
                       <strong>💬 Donor Feedback:</strong>
@@ -178,21 +205,12 @@ export default function ApplicationsPage() {
                     </button>
                   </div>
 
-                  {String(selected) === String(app.id) && app.personal_info && (
+                  {String(selected) === String(app.id) && (
                     <div className={styles.details}>
-                      <div className={styles.detailSection}>
-                        <h4>Personal Information</h4>
-                        {Object.entries(app.personal_info).map(([k, v]) => v && (
-                          <div key={k} className={styles.detailRow}>
-                            <span>{k.replace(/_/g, ' ')}</span>
-                            <strong>{v}</strong>
-                          </div>
-                        ))}
-                      </div>
-                      {app.academic_info && (
+                      {app.personal_info && (
                         <div className={styles.detailSection}>
-                          <h4>Academic Details</h4>
-                          {Object.entries(app.academic_info).map(([k, v]) => v && (
+                          <h4>Personal Information</h4>
+                          {Object.entries(app.personal_info).map(([k, v]) => v && (
                             <div key={k} className={styles.detailRow}>
                               <span>{k.replace(/_/g, ' ')}</span>
                               <strong>{v}</strong>
@@ -200,6 +218,7 @@ export default function ApplicationsPage() {
                           ))}
                         </div>
                       )}
+                      <DocumentsPreview documents={app.document_urls} />
                     </div>
                   )}
                 </div>

@@ -28,12 +28,40 @@ export default function AdminDashboard() {
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
   const [publishing, setPublishing] = useState(false)
+  const [announcementItems, setAnnouncementItems] = useState([])
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false)
+  const [announcementsPage, setAnnouncementsPage] = useState(1)
+  const [announcementsTotalPages, setAnnouncementsTotalPages] = useState(1)
+  const [editingAnnouncementId, setEditingAnnouncementId] = useState('')
+  const [editAnnouncementTitle, setEditAnnouncementTitle] = useState('')
+  const [editAnnouncementContent, setEditAnnouncementContent] = useState('')
+  const [savingAnnouncementId, setSavingAnnouncementId] = useState('')
+  
+  // Reject modal state
+  const [showRejectModal, setShowRejectModal] = useState(false)
+  const [rejectAppId, setRejectAppId] = useState(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState('')
+  const feedbackTemplates = [
+    'Document is not clear/legible',
+    'Missing required page(s)',
+    'Incorrect document type',
+    'Information does not match records',
+    'Other (see comments)'
+  ]
 
   useEffect(() => {
     fetchPendingUsers()
     fetchPendingScholarships()
     fetchPendingApplications()
+    fetchAnnouncements(1)
   }, [])
+
+  useEffect(() => {
+    if (activeTab === 'announcements') {
+      fetchAnnouncements(announcementsPage)
+    }
+  }, [activeTab, announcementsPage])
 
   async function fetchPendingUsers() {
     setError('')
@@ -93,21 +121,34 @@ export default function AdminDashboard() {
     }
   }
 
-  async function updateApplicationStatus(appId, status, admin_feedback = '') {
+  async function updateApplicationStatus(appId, status, admin_feedback = '', feedback_template = '') {
     setBusyApplicationId(appId)
     setError('')
     try {
       const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error('Not authenticated. Please log in again.')
+      }
+      
+      const requestBody = { status, admin_feedback, feedback_template }
+      console.log('📤 Sending admin request:', { appId, status, admin_feedback, feedback_template })
+      
       const res = await fetch(`/api/admin/applications/${appId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${session?.access_token}`
+          Authorization: `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ status, admin_feedback })
+        body: JSON.stringify(requestBody)
       })
+
       const payload = await res.json()
-      if (!res.ok) throw new Error(payload.error || 'Failed to update application status.')
+      
+      if (!res.ok) {
+        console.error('❌ Admin request failed:', { status: res.status, statusText: res.statusText, payload })
+        throw new Error(payload.error || payload.message || 'Failed to update application status')
+      }
+      console.log('✅ Admin request succeeded:', payload)
       
       // Remove from list if fully processed, otherwise update status
       if (status === 'approved' || status === 'admin_approved' || status === 'rejected') {
@@ -115,6 +156,11 @@ export default function AdminDashboard() {
       } else {
         setPendingApplications(prev => prev.map(a => a.id === appId ? { ...a, status } : a))
       }
+      
+      setShowRejectModal(false)
+      setRejectAppId(null)
+      setRejectReason('')
+      setSelectedTemplate('')
     } catch (err) {
       setError(err.message || 'Failed to update application.')
     } finally {
@@ -141,11 +187,101 @@ export default function AdminDashboard() {
       
       setAnnouncementTitle('')
       setAnnouncementContent('')
-      alert('Announcement published successfully!')
+      setAnnouncementItems(prev => [payload.announcement, ...prev].slice(0, 8))
     } catch (err) {
       setError(err.message || 'Failed to publish announcement.')
     } finally {
       setPublishing(false)
+    }
+  }
+
+  async function fetchAnnouncements(page = 1) {
+    setLoadingAnnouncements(true)
+    setError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/admin/announcements?page=${page}&limit=8`, {
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      })
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error || 'Failed to load announcements.')
+
+      setAnnouncementItems(payload.announcements || [])
+      setAnnouncementsPage(payload.page || 1)
+      setAnnouncementsTotalPages(payload.total_pages || 1)
+    } catch (err) {
+      setError(err.message || 'Failed to load announcements.')
+    } finally {
+      setLoadingAnnouncements(false)
+    }
+  }
+
+  function beginEditAnnouncement(item) {
+    setEditingAnnouncementId(item.id)
+    setEditAnnouncementTitle(item.title || '')
+    setEditAnnouncementContent(item.content || '')
+  }
+
+  function cancelEditAnnouncement() {
+    setEditingAnnouncementId('')
+    setEditAnnouncementTitle('')
+    setEditAnnouncementContent('')
+  }
+
+  async function saveAnnouncementEdit(id) {
+    setSavingAnnouncementId(id)
+    setError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          title: editAnnouncementTitle,
+          content: editAnnouncementContent
+        })
+      })
+
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error || 'Failed to update announcement.')
+
+      setAnnouncementItems(prev => prev.map(item => item.id === id ? payload.announcement : item))
+      cancelEditAnnouncement()
+    } catch (err) {
+      setError(err.message || 'Failed to update announcement.')
+    } finally {
+      setSavingAnnouncementId('')
+    }
+  }
+
+  async function deleteAnnouncement(id) {
+    const confirmed = window.confirm('Delete this announcement?')
+    if (!confirmed) return
+
+    setSavingAnnouncementId(id)
+    setError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session?.access_token}` }
+      })
+
+      const payload = await res.json()
+      if (!res.ok) throw new Error(payload.error || 'Failed to delete announcement.')
+
+      if (announcementItems.length === 1 && announcementsPage > 1) {
+        setAnnouncementsPage(prev => prev - 1)
+      } else {
+        setAnnouncementItems(prev => prev.filter(item => item.id !== id))
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to delete announcement.')
+    } finally {
+      setSavingAnnouncementId('')
     }
   }
 
@@ -242,7 +378,7 @@ export default function AdminDashboard() {
         </div>
         <div className={styles.headerActions}>
           <span className={styles.adminEmail}>{profile?.email || user?.email}</span>
-          <button className={styles.secondaryBtn} onClick={() => { fetchPendingUsers(); fetchPendingScholarships(); fetchPendingApplications(); }}>Refresh</button>
+          <button className={styles.secondaryBtn} onClick={() => { fetchPendingUsers(); fetchPendingScholarships(); fetchPendingApplications(); fetchAnnouncements(announcementsPage); }}>Refresh</button>
           <button className={styles.secondaryBtn} onClick={handleSignOut}>Sign out</button>
         </div>
       </header>
@@ -462,16 +598,16 @@ export default function AdminDashboard() {
                         <div className={styles.verifyItem} style={{ gridColumn: '1 / -1' }}><span className={styles.verifyLabel}>Address</span><span className={styles.verifyValue}>{pInfo.address}</span></div>
                         
                         {/* Academic Info */}
-                        <div className={styles.verifyItem}><span className={styles.verifyLabel}>University</span><span className={styles.verifyValue}>{aInfo.university}</span></div>
-                        <div className={styles.verifyItem}><span className={styles.verifyLabel}>GPA/CGPA</span><span className={styles.verifyValue}>{aInfo.gpa}</span></div>
+                        {/* Only show current year if needed */}
+                        <div className={styles.verifyItem}><span className={styles.verifyLabel}>Current Year</span><span className={styles.verifyValue}>{aInfo.current_year}</span></div>
                         
                         {/* Docs */}
                         <div className={styles.verifyItem} style={{ gridColumn: '1 / -1' }}>
                           <span className={styles.verifyLabel}>Uploaded Documents</span>
                           <ul style={{ margin: 0, paddingLeft: '1.2rem', marginTop: '0.5rem' }}>
-                            {docs.grades_url && <li><a href={docs.grades_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3' }}>O-Level/A-Level Grades</a></li>}
                             {docs.id_card_url && <li><a href={docs.id_card_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3' }}>ID Card</a></li>}
-                            {docs.essay_url && <li><a href={docs.essay_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3' }}>Essay</a></li>}
+                            {docs.income_certificate_url && <li><a href={docs.income_certificate_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3' }}>Income Verification Certificate</a></li>}
+                            {docs.bank_account_url && <li><a href={docs.bank_account_url} target="_blank" rel="noreferrer" style={{ color: '#0056b3' }}>Bank Account Scan</a></li>}
                           </ul>
                         </div>
                       </div>
@@ -510,8 +646,10 @@ export default function AdminDashboard() {
                       className={styles.rejectBtn}
                       disabled={busyApplicationId === item.id}
                       onClick={() => {
-                        const reason = prompt('Reason for rejection (Optional):');
-                        if (reason !== null) updateApplicationStatus(item.id, 'rejected', reason);
+                        setShowRejectModal(true)
+                        setRejectAppId(item.id)
+                        setRejectReason('')
+                        setSelectedTemplate('')
                       }}
                     >
                       Reject
@@ -563,8 +701,158 @@ export default function AdminDashboard() {
               {publishing ? 'Publishing...' : 'Publish Announcement Now'}
             </button>
           </form>
+
+          <div style={{ marginTop: '1.5rem', borderTop: '1px solid #e4e9f5', paddingTop: '1.25rem' }}>
+            <h3 style={{ margin: '0 0 0.85rem', color: '#1f2a44' }}>Recent Announcements</h3>
+
+            {loadingAnnouncements ? (
+              <p className={styles.empty}>Loading announcements...</p>
+            ) : announcementItems.length === 0 ? (
+              <p className={styles.empty}>No announcements posted yet.</p>
+            ) : (
+              <div className={styles.list}>
+                {announcementItems.map((item) => {
+                  const isEditing = editingAnnouncementId === item.id
+                  const busy = savingAnnouncementId === item.id
+
+                  return (
+                    <article key={item.id} className={styles.userCard}>
+                      <div className={styles.meta} style={{ marginBottom: '0.45rem' }}>
+                        <span>Published: {item.created_at ? new Date(item.created_at).toLocaleString() : 'N/A'}</span>
+                      </div>
+
+                      {isEditing ? (
+                        <div style={{ display: 'grid', gap: '0.65rem' }}>
+                          <input
+                            type="text"
+                            value={editAnnouncementTitle}
+                            onChange={(e) => setEditAnnouncementTitle(e.target.value)}
+                            style={{ width: '100%', padding: '0.65rem', borderRadius: '0.45rem', border: '1px solid #ccd6eb' }}
+                          />
+                          <textarea
+                            rows="4"
+                            value={editAnnouncementContent}
+                            onChange={(e) => setEditAnnouncementContent(e.target.value)}
+                            style={{ width: '100%', padding: '0.65rem', borderRadius: '0.45rem', border: '1px solid #ccd6eb', resize: 'vertical' }}
+                          />
+                          <div className={styles.actions}>
+                            <button className={styles.approveBtn} disabled={busy} onClick={() => saveAnnouncementEdit(item.id)}>
+                              {busy ? 'Saving...' : 'Save'}
+                            </button>
+                            <button className={styles.secondaryBtn} type="button" onClick={cancelEditAnnouncement}>
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <h3 style={{ margin: '0 0 0.35rem' }}>{item.title}</h3>
+                          <p style={{ margin: '0 0 0.7rem', color: '#354767', whiteSpace: 'pre-wrap' }}>{item.content}</p>
+                          <div className={styles.actions}>
+                            <button className={styles.secondaryBtn} onClick={() => beginEditAnnouncement(item)} disabled={busy}>
+                              Edit
+                            </button>
+                            <button className={styles.rejectBtn} onClick={() => deleteAnnouncement(item.id)} disabled={busy}>
+                              Delete
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              <button
+                className={styles.secondaryBtn}
+                disabled={announcementsPage <= 1 || loadingAnnouncements}
+                onClick={() => setAnnouncementsPage((prev) => Math.max(prev - 1, 1))}
+              >
+                Previous
+              </button>
+              <span style={{ color: '#566a8f', fontSize: '0.9rem' }}>Page {announcementsPage} of {announcementsTotalPages}</span>
+              <button
+                className={styles.secondaryBtn}
+                disabled={announcementsPage >= announcementsTotalPages || loadingAnnouncements}
+                onClick={() => setAnnouncementsPage((prev) => Math.min(prev + 1, announcementsTotalPages))}
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
       </section>
+      )}
+
+      {/* Reject Modal */}
+      {showRejectModal && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(30,41,59,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'white', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', padding: '2rem 2.5rem', minWidth: 360, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto' }}>
+            <h3 style={{ margin: 0, marginBottom: 16, fontSize: '1.3rem', color: '#1f2a44' }}>Reject Application</h3>
+            <p style={{ margin: '0 0 1rem', color: '#64748b', fontSize: '0.95rem' }}>Please select or provide a reason for rejection:</p>
+            
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontWeight: 600, color: '#475569', marginBottom: 8, display: 'block', fontSize: '0.9rem' }}>📋 Select a Template (Optional)</label>
+              <select 
+                value={selectedTemplate} 
+                onChange={e => setSelectedTemplate(e.target.value)} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', background: 'white', cursor: 'pointer', fontSize: '0.95rem' }}
+              >
+                <option value="">-- Choose a template --</option>
+                {feedbackTemplates.map((tpl, i) => <option key={i} value={tpl}>{tpl}</option>)}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontWeight: 600, color: '#475569', marginBottom: 8, display: 'block', fontSize: '0.9rem' }}>✍️ Or Write Custom Reason</label>
+              <textarea 
+                value={rejectReason} 
+                onChange={e => setRejectReason(e.target.value)} 
+                rows={4} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid #cbd5e1', fontFamily: 'inherit', fontSize: '0.95rem', resize: 'vertical' }} 
+                placeholder="Explain why you're rejecting this application (at least 3 characters)..."
+              />
+            </div>
+
+            {!selectedTemplate && rejectReason && (
+              <div style={{ fontSize: '0.85rem', color: '#64748b', marginBottom: 12 }}>
+                Characters: {rejectReason.length}/200
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+              <button 
+                className={styles.secondaryBtn}
+                onClick={() => { 
+                  setShowRejectModal(false); 
+                  setRejectAppId(null); 
+                  setRejectReason(''); 
+                  setSelectedTemplate(''); 
+                }}
+                style={{ minWidth: 100 }}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.rejectBtn}
+                onClick={() => {
+                  const reason = selectedTemplate || rejectReason
+                  if (!reason || reason.trim().length < 3) {
+                    setError('Please select a template or provide at least 3 characters')
+                    return
+                  }
+                  updateApplicationStatus(rejectAppId, 'rejected', rejectReason, selectedTemplate)
+                }}
+                disabled={!selectedTemplate && (!rejectReason || rejectReason.trim().length < 3) || busyApplicationId === rejectAppId}
+                style={{ minWidth: 100, opacity: (!selectedTemplate && (!rejectReason || rejectReason.trim().length < 3) || busyApplicationId === rejectAppId) ? 0.6 : 1 }}
+              >
+                {busyApplicationId === rejectAppId ? 'Rejecting...' : 'Confirm Reject'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
