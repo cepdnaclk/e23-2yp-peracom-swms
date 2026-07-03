@@ -1,13 +1,20 @@
-// config/supabase.js
-// This file sets up the connection to Supabase database
+import { createClient } from '@supabase/supabase-js'
+import dotenv from 'dotenv'
+dotenv.config()
 
-const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY,
+  { auth: { persistSession: false } }
+)
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_ANON_KEY;
+export const uploadFile = async (bucket, path, buffer, mimetype) => {
+  const { data, error } = await supabase.storage
+    .from(bucket)
+    .upload(path, buffer, { contentType: mimetype, upsert: true })
+  if (error) throw error
+  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(path)
+  return urlData.publicUrl
+}
 
-// Create and export the Supabase client
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-module.exports = supabase;
+export default supabase
