@@ -42,12 +42,17 @@ import DonorDashboard from './pages/donor/DonorDashboard'
 import DonorScholarships from './pages/donor/DonorScholarships'
 import DonorStudents from './pages/donor/DonorStudents'
 import DonorApplicationReview from './pages/donor/DonorApplicationReview'
+import DonorPaymentReview from './pages/donor/DonorPaymentReview'
 import DonorAnnouncements from './pages/donor/DonorAnnouncements'
 import DonorProfile from './pages/donor/DonorProfile'
 
 function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth()
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full" /></div>
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-spin w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full" />
+    </div>
+  )
   if (!user) return <Navigate to="/login" replace />
   if (role && user.role !== role) return <Navigate to="/login" replace />
   return children
@@ -60,7 +65,7 @@ function AppRoutes() {
     <Routes>
       {/* Public */}
       <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={user ? <Navigate to={`/${user.role}/dashboard`} replace /> : <LoginPage />} />
+      <Route path="/login" element={user ? <Navigate to={`/${user.role === 'admin' ? 'dashboard' : user.role + '/dashboard'}`} replace /> : <LoginPage />} />
       <Route path="/register/student" element={<StudentRegisterPage />} />
       <Route path="/register/donor" element={<DonorRegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -112,6 +117,7 @@ function AppRoutes() {
         <Route path="scholarships" element={<DonorScholarships />} />
         <Route path="students" element={<DonorStudents />} />
         <Route path="students/:id/review" element={<DonorApplicationReview />} />
+        <Route path="payments" element={<DonorPaymentReview />} />
         <Route path="announcements" element={<DonorAnnouncements />} />
         <Route path="profile" element={<DonorProfile />} />
       </Route>

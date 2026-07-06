@@ -7,6 +7,7 @@ import applicationRoutes from './routes/applications.js'
 import studentRoutes from './routes/student.js'
 import donorRoutes from './routes/donor.js'
 import adminRoutes from './routes/admin.js'
+import paymentRoutes from './routes/payment.js'
 
 dotenv.config()
 
@@ -23,6 +24,7 @@ app.use('/api/applications', applicationRoutes)
 app.use('/api/student', studentRoutes)
 app.use('/api/donor', donorRoutes)
 app.use('/api/admin', adminRoutes)
+app.use('/api/payment', paymentRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }))

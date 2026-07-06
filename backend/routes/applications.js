@@ -6,9 +6,7 @@ import { uploadFile } from '../config/supabase.js'
 
 const router = express.Router()
 
-// ─────────────────────────────────────────────────────────────
 // GET /api/applications  — admin: all applications
-// ─────────────────────────────────────────────────────────────
 router.get('/', authenticate, requireAdmin, async (req, res) => {
   try {
     const { scholarship_id, status, search } = req.query
@@ -19,17 +17,15 @@ router.get('/', authenticate, requireAdmin, async (req, res) => {
              WHERE 1=1`
     const params = []
     if (scholarship_id) { q += ` AND a.scholarship_id = $${params.length+1}`; params.push(scholarship_id) }
-    if (status)         { q += ` AND a.status = $${params.length+1}`;          params.push(status) }
-    if (search)         { q += ` AND u.name ILIKE $${params.length+1}`;        params.push(`%${search}%`) }
+    if (status)         { q += ` AND a.status = $${params.length+1}`;         params.push(status) }
+    if (search)         { q += ` AND u.name ILIKE $${params.length+1}`;       params.push(`%${search}%`) }
     q += ' ORDER BY a.created_at DESC'
     const result = await query(q, params)
     res.json(result.rows)
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
-// GET /api/applications/:id  — admin OR donor: single detail
-// ─────────────────────────────────────────────────────────────
+// GET /api/applications/:id  — admin OR donor OR student (own)
 router.get('/:id', authenticate, async (req, res) => {
   try {
     const result = await query(
@@ -43,26 +39,33 @@ router.get('/:id', authenticate, async (req, res) => {
     if (!result.rows.length) return res.status(404).json({ message: 'Not found' })
 
     const app = result.rows[0]
-
-    // Access control: admin sees all; donor sees only assigned; student sees own
-    if (req.user.role === 'student' && app.student_id !== req.user.id) {
+    if (req.user.role === 'student' && app.student_id !== req.user.id)
       return res.status(403).json({ message: 'Forbidden' })
-    }
     if (req.user.role === 'donor') {
-      // Check if this app is assigned to this donor
       const check = await query(
         'SELECT id FROM donor_students WHERE application_id = $1 AND donor_id = $2',
         [req.params.id, req.user.id])
       if (!check.rows.length) return res.status(403).json({ message: 'Forbidden' })
     }
-
     res.json(app)
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
+// GET /api/applications/:id/donor-decision  — student: check if donor approved this app
+router.get('/:id/donor-decision', authenticate, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT ds.donor_decision, ds.donor_id, u.name AS donor_name
+       FROM donor_students ds
+       LEFT JOIN users u ON ds.donor_id = u.id
+       WHERE ds.application_id = $1
+       ORDER BY ds.updated_at DESC LIMIT 1`,
+      [req.params.id])
+    res.json(result.rows[0] || { donor_decision: null })
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
 // GET /api/applications/:id/documents
-// ─────────────────────────────────────────────────────────────
 router.get('/:id/documents', authenticate, async (req, res) => {
   try {
     const result = await query(
@@ -75,16 +78,13 @@ router.get('/:id/documents', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // POST /api/applications/:id/documents  — student uploads doc
-// ─────────────────────────────────────────────────────────────
 router.post('/:id/documents', authenticate, upload.single('file'), async (req, res) => {
   try {
     const { document_name } = req.body
-    if (!req.file)       return res.status(400).json({ message: 'File required' })
-    if (!document_name)  return res.status(400).json({ message: 'document_name required' })
+    if (!req.file)      return res.status(400).json({ message: 'File required' })
+    if (!document_name) return res.status(400).json({ message: 'document_name required' })
 
-    // Must be the application owner
     const appCheck = await query(
       'SELECT id FROM applications WHERE id = $1 AND student_id = $2',
       [req.params.id, req.user.id])
@@ -96,7 +96,7 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req, r
       const filePath = `documents/${req.params.id}/${document_name.replace(/\s+/g,'_')}_${Date.now()}.${ext}`
       fileUrl = await uploadFile('welfare-docs', filePath, req.file.buffer, req.file.mimetype)
     } catch (storageErr) {
-      console.warn('Storage upload failed, storing filename only:', storageErr.message)
+      console.warn('Storage upload failed:', storageErr.message)
     }
 
     const result = await query(
@@ -107,77 +107,74 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req, r
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // PATCH /api/applications/:id/documents/:docId/verify  — admin
-// ─────────────────────────────────────────────────────────────
 router.patch('/:id/documents/:docId/verify', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await query(
-      `UPDATE application_documents
-       SET status = 'Verified', updated_at = NOW()
-       WHERE id = $1 AND application_id = $2
-       RETURNING *`,
+      `UPDATE application_documents SET status = 'Verified', updated_at = NOW()
+       WHERE id = $1 AND application_id = $2 RETURNING *`,
       [req.params.docId, req.params.id])
     if (!result.rows.length) return res.status(404).json({ message: 'Document not found' })
     res.json(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // DELETE /api/applications/:id/documents/:docId  — student
-// ─────────────────────────────────────────────────────────────
 router.delete('/:id/documents/:docId', authenticate, async (req, res) => {
   try {
-    // Must be the application owner
     const appCheck = await query(
       'SELECT id FROM applications WHERE id = $1 AND student_id = $2',
       [req.params.id, req.user.id])
     if (!appCheck.rows.length) return res.status(403).json({ message: 'Forbidden' })
-
-    await query(
-      'DELETE FROM application_documents WHERE id = $1 AND application_id = $2',
+    await query('DELETE FROM application_documents WHERE id = $1 AND application_id = $2',
       [req.params.docId, req.params.id])
-    res.json({ message: 'Document deleted' })
+    res.json({ message: 'Deleted' })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // POST /api/applications/:id/approve  — admin
-// ─────────────────────────────────────────────────────────────
 router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
   try {
     await query(
       `UPDATE applications SET status = 'Approved', admin_reason = NULL, updated_at = NOW()
-       WHERE id = $1`,
+       WHERE id = $1`, [req.params.id])
+
+    // Check if donor already approved → trigger full approval
+    const donorCheck = await query(
+      `SELECT id FROM donor_students WHERE application_id = $1 AND donor_decision = 'Approved'`,
       [req.params.id])
+    if (donorCheck.rows.length) {
+      const app = await query('SELECT student_id FROM applications WHERE id = $1', [req.params.id])
+      await query(
+        `UPDATE applications SET status = 'Fully Approved', updated_at = NOW() WHERE id = $1`,
+        [req.params.id])
+      await query(
+        `INSERT INTO payment_details (application_id, student_id, payment_details_status)
+         VALUES ($1, $2, 'Unlocked') ON CONFLICT (application_id) DO UPDATE SET payment_details_status = 'Unlocked', updated_at = NOW()`,
+        [req.params.id, app.rows[0]?.student_id]).catch(() => {})
+    }
     res.json({ message: 'Application approved' })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // POST /api/applications/:id/reject  — admin
-// ─────────────────────────────────────────────────────────────
 router.post('/:id/reject', authenticate, requireAdmin, async (req, res) => {
   try {
     const { admin_reason } = req.body
     await query(
       `UPDATE applications SET status = 'Rejected', admin_reason = $1, updated_at = NOW()
-       WHERE id = $2`,
-      [admin_reason, req.params.id])
+       WHERE id = $2`, [admin_reason, req.params.id])
     res.json({ message: 'Application rejected' })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// ─────────────────────────────────────────────────────────────
 // POST /api/applications/:id/resubmit  — admin
-// ─────────────────────────────────────────────────────────────
 router.post('/:id/resubmit', authenticate, requireAdmin, async (req, res) => {
   try {
     const { admin_reason } = req.body
     await query(
       `UPDATE applications SET status = 'Resubmission Requested', admin_reason = $1, updated_at = NOW()
-       WHERE id = $2`,
-      [admin_reason, req.params.id])
+       WHERE id = $2`, [admin_reason, req.params.id])
     res.json({ message: 'Resubmission requested' })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })

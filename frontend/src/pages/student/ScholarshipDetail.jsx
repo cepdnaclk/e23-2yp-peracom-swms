@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Check, Plus, Trash2, Upload, Eye, Download, FileText, AlertCircle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import Step6PaymentDetails from '../../components/student/Step6PaymentDetails'
 import api from '../../services/api'
 
 // ─── Constants ───────────────────────────────────────────────
-const STEPS = ['Personal Info', 'Family Details', 'Financial Details', 'Academic Details', 'Documents']
+const STEPS = ['Personal Info', 'Family Details', 'Financial Details', 'Academic Details', 'Documents', 'Payment Details']
 
 const SRI_LANKA_DISTRICTS = [
   'Ampara','Anuradhapura','Badulla','Batticaloa','Colombo','Galle','Gampaha',
@@ -656,6 +657,8 @@ export default function ScholarshipDetail() {
   const [savedAppId, setSavedAppId]   = useState(null)
   const [declared, setDeclared]       = useState(false)
   const [docs, setDocs]               = useState({})
+  const [adminApproval, setAdminApproval] = useState(null)
+  const [donorApproval, setDonorApproval] = useState(null)
 
   const [formData, setFormData] = useState({})
   const [errors, setErrors]     = useState({})
@@ -665,6 +668,23 @@ export default function ScholarshipDetail() {
       .then(r => setScholarship(r.data))
       .catch(() => toast.error('Scholarship not found'))
       .finally(() => setLoading(false))
+  }, [id])
+
+  // Load existing application status for Payment Details unlock check
+  useEffect(() => {
+    api.get('/student/applications')
+      .then(r => {
+        const existing = r.data.find(a => a.scholarship_id === id)
+        if (existing) {
+          setSavedAppId(existing.id)
+          setAdminApproval(existing.status === 'Approved' || existing.status === 'Fully Approved' || existing.status === 'Payment Details Submitted' || existing.status === 'Payment Verified' ? 'Approved' : null)
+          // Check donor approval via donor_students
+          api.get(`/applications/${existing.id}/donor-decision`)
+            .then(d => setDonorApproval(d.data?.donor_decision || null))
+            .catch(() => {})
+        }
+      })
+      .catch(() => {})
   }, [id])
 
   const updateField = (field, value) => {
@@ -700,7 +720,7 @@ export default function ScholarshipDetail() {
     return Object.keys(e).length === 0
   }
 
-  const handleNext = () => { if (validate()) setStep(s => Math.min(s + 1, 4)) }
+  const handleNext = () => { if (validate()) setStep(s => Math.min(s + 1, 5)) }
   const handleBack = () => setStep(s => Math.max(s - 1, 0))
 
   // ── Save draft (create application record) ──
@@ -873,6 +893,14 @@ export default function ScholarshipDetail() {
                 </div>
               </div>
             )}
+            {step === 5 && (
+              <Step6PaymentDetails
+                applicationId={savedAppId}
+                applicationStatus={null}
+                adminApproval={adminApproval}
+                donorApproval={donorApproval}
+              />
+            )}
           </div>
 
           {/* Navigation */}
@@ -890,16 +918,28 @@ export default function ScholarshipDetail() {
                 </button>
               )}
 
-              {step < 4 ? (
+              {/* Steps 0-3: Next button */}
+              {step < 4 && (
                 <button onClick={handleNext} className="btn-primary px-8">
                   Next →
                 </button>
-              ) : (
+              )}
+
+              {/* Step 4 (Documents): Submit Application */}
+              {step === 4 && (
                 <button onClick={handleSubmit} disabled={submitting || !declared}
                   className="btn-primary px-8 disabled:opacity-50">
                   {submitting
                     ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Submitting...</span>
                     : '✓ Submit Application'}
+                </button>
+              )}
+
+              {/* Step 5 (Payment): just show Next to go back or close */}
+              {step === 5 && (
+                <button onClick={() => navigate('/student/applications')}
+                  className="btn-primary px-8">
+                  Go to My Applications
                 </button>
               )}
             </div>

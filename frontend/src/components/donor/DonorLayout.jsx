@@ -1,16 +1,20 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, BookOpen, Users, Megaphone, User, Bell, LogOut, Menu, X } from 'lucide-react'
+import {
+  LayoutDashboard, BookOpen, Users, Megaphone,
+  User, Bell, LogOut, Menu, X, CreditCard
+} from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { UPLogo } from '../common/UPLogo'
 import { Footer } from '../common/Footer'
 
 const navLinks = [
-  { to: '/donor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/donor/scholarships', label: 'Scholarships', icon: BookOpen },
-  { to: '/donor/students', label: 'Students', icon: Users },
+  { to: '/donor/dashboard',     label: 'Dashboard',   icon: LayoutDashboard },
+  { to: '/donor/scholarships',  label: 'Scholarships', icon: BookOpen },
+  { to: '/donor/students',      label: 'Students',    icon: Users },
+  { to: '/donor/payments',      label: 'Payments',    icon: CreditCard },
   { to: '/donor/announcements', label: 'Announcements', icon: Megaphone },
-  { to: '/donor/profile', label: 'Profile', icon: User },
+  { to: '/donor/profile',       label: 'Profile',     icon: User },
 ]
 
 export default function DonorLayout() {
