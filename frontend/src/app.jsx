@@ -35,6 +35,7 @@ import ScholarshipDetail from './pages/student/ScholarshipDetail'
 import MyApplications from './pages/student/MyApplications'
 import StudentProfile from './pages/student/StudentProfile'
 import ProgressReports from './pages/student/ProgressReports'
+import StudentPaymentPage from './pages/student/StudentPaymentPage'
 
 // Donor Pages
 import DonorLayout from './components/donor/DonorLayout'
@@ -107,6 +108,7 @@ function AppRoutes() {
         <Route path="scholarships" element={<StudentScholarships />} />
         <Route path="scholarships/:id" element={<ScholarshipDetail />} />
         <Route path="applications" element={<MyApplications />} />
+        <Route path="payment/:applicationId" element={<StudentPaymentPage />} />
         <Route path="profile" element={<StudentProfile />} />
         <Route path="progress" element={<ProgressReports />} />
       </Route>

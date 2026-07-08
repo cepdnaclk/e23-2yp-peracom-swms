@@ -11,7 +11,7 @@ import api from '../../services/api'
 import { format } from 'date-fns'
 
 // ── Notification banner
-function NotificationBanner({ notif, onDismiss }) {
+function NotificationBanner({ notif, paymentAppId, onDismiss }) {
   const config = {
     payment_unlocked: {
       bg: 'bg-green-50 border-green-200',
@@ -38,24 +38,27 @@ function NotificationBanner({ notif, onDismiss }) {
   const c = config[notif.type] || config.payment_unlocked
   const Icon = c.icon
 
+  // Build the correct link: payment page if we have an app ID, else applications list
+  const paymentLink = paymentAppId
+    ? `/student/payment/${paymentAppId}`
+    : '/student/applications'
+
   return (
     <div className={`border rounded-xl p-4 flex items-start gap-3 ${c.bg}`}>
       <Icon size={18} className={`${c.iconColor} flex-shrink-0 mt-0.5`} />
       <div className="flex-1 min-w-0">
         <p className={`font-semibold text-sm ${c.titleColor}`}>{notif.title}</p>
         <p className={`text-xs mt-0.5 ${c.textColor}`}>{notif.message}</p>
-        {notif.link && (
-          <Link to={notif.link}
-            className={`inline-flex items-center gap-1 text-xs font-semibold mt-2 hover:underline ${c.titleColor}`}>
-            {notif.type === 'payment_unlocked'
-              ? <><CreditCard size={12}/> Complete Payment Details</>
-              : notif.type === 'payment_resubmission'
-              ? <><AlertCircle size={12}/> Update Payment Details</>
-              : <><CheckCircle size={12}/> View Application</>
-            }
-            <ArrowRight size={12}/>
-          </Link>
-        )}
+        <Link to={paymentLink}
+          className={`inline-flex items-center gap-1 text-xs font-semibold mt-2 hover:underline ${c.titleColor}`}>
+          {notif.type === 'payment_unlocked'
+            ? <><CreditCard size={12}/> Complete Payment Details</>
+            : notif.type === 'payment_resubmission'
+            ? <><AlertCircle size={12}/> Update Payment Details</>
+            : <><CheckCircle size={12}/> View Application</>
+          }
+          <ArrowRight size={12}/>
+        </Link>
       </div>
       <button onClick={() => onDismiss(notif.id)}
         className="text-slate-400 hover:text-slate-600 text-xs flex-shrink-0 mt-0.5">✕</button>
@@ -91,17 +94,21 @@ export default function StudentDashboard() {
 
   const firstName = user?.name?.split(' ')[0] || 'Student'
 
+  // Find the most recent fully-approved application for payment link
+  const fullyApprovedApp = recentApps.find(a =>
+    ['Fully Approved','Payment Details Submitted','Resubmission Required'].includes(a.status)
+  )
+  const paymentLink = fullyApprovedApp
+    ? `/student/payment/${fullyApprovedApp.id}`
+    : '/student/applications'
+  const hasPaymentPending = !!fullyApprovedApp
+
   const quickActions = [
     { label: 'Browse Scholarships', to: '/student/scholarships', color: 'bg-purple-600 hover:bg-purple-700' },
     { label: 'My Applications',     to: '/student/applications', color: 'bg-blue-600 hover:bg-blue-700' },
     { label: 'Upload Documents',    to: '/student/applications', color: 'bg-green-600 hover:bg-green-700' },
     { label: 'Submit Progress',     to: '/student/progress',     color: 'bg-amber-500 hover:bg-amber-600' },
   ]
-
-  // Detect if any application is fully approved and payment not yet submitted
-  const hasPaymentPending = recentApps.some(a =>
-    ['Fully Approved','Payment Details Submitted'].includes(a.status)
-  )
 
   return (
     <div className="space-y-6">
@@ -115,7 +122,9 @@ export default function StudentDashboard() {
       {notifications.length > 0 && (
         <div className="space-y-3">
           {notifications.map(n => (
-            <NotificationBanner key={n.id} notif={n} onDismiss={dismissNotification}/>
+            <NotificationBanner key={n.id} notif={n}
+              paymentAppId={fullyApprovedApp?.id}
+              onDismiss={dismissNotification}/>
           ))}
         </div>
       )}
@@ -131,7 +140,7 @@ export default function StudentDashboard() {
             <p className="text-xs text-green-700 mt-0.5">
               Please complete your Payment Details to receive scholarship funds.
             </p>
-            <Link to="/student/applications"
+            <Link to={paymentLink}
               className="inline-flex items-center gap-1.5 text-xs font-semibold mt-2 text-green-800 hover:underline">
               <CreditCard size={12}/> Complete Payment Details <ArrowRight size={12}/>
             </Link>

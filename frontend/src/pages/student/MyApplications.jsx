@@ -7,7 +7,7 @@ import { viewDocument } from '../../utils/viewDocument'
 import api from '../../services/api'
 import { format } from 'date-fns'
 
-const TABS = ['All', 'Pending', 'Approved', 'Rejected', 'Resubmission Requested']
+const TABS = ['All', 'Pending', 'Approved', 'Awarded', 'Rejected', 'Resubmission Requested']
 
 const REQUIRED_DOCS = [
   'NIC Copy',
@@ -19,11 +19,16 @@ const REQUIRED_DOCS = [
 // ── Progress bar
 function ProgressBar({ status }) {
   const config = {
-    Approved:                { width: '100%', color: 'bg-green-400' },
-    Rejected:                { width: '100%', color: 'bg-red-400' },
-    Pending:                 { width: '25%',  color: 'bg-amber-400' },
-    'Under Review':          { width: '50%',  color: 'bg-blue-400' },
-    'Resubmission Requested':{ width: '60%',  color: 'bg-orange-400' },
+    Pending:                    { width: '25%',  color: 'bg-amber-400' },
+    'Under Review':             { width: '40%',  color: 'bg-blue-400' },
+    'Resubmission Requested':   { width: '50%',  color: 'bg-orange-400' },
+    Approved:                   { width: '65%',  color: 'bg-green-400' },
+    'Fully Approved':           { width: '75%',  color: 'bg-green-500' },
+    'Payment Details Submitted':{ width: '85%',  color: 'bg-purple-400' },
+    'Resubmission Required':    { width: '80%',  color: 'bg-red-400' },
+    'Payment Verified':         { width: '95%',  color: 'bg-green-500' },
+    Rejected:                   { width: '100%', color: 'bg-red-400' },
+    Completed:                  { width: '100%', color: 'bg-green-600' },
   }
   const c = config[status] || { width: '10%', color: 'bg-slate-300' }
   return (
@@ -340,6 +345,35 @@ export default function MyApplications() {
                       <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-1.5">
                         <AlertCircle size={12} className="mt-0.5 flex-shrink-0"/>
                         <span><span className="font-semibold">Admin note:</span> {app.admin_reason}</span>
+                      </div>
+                    )}
+
+                    {/* Payment CTA — shown when Fully Approved or Resubmission Required */}
+                    {['Fully Approved', 'Resubmission Required'].includes(app.status) && (
+                      <Link to={`/student/payment/${app.id}`}
+                        className="mt-3 flex items-center justify-between gap-2 bg-gradient-to-r from-purple-700 to-purple-500 rounded-xl px-4 py-3 text-white text-xs font-semibold hover:opacity-90 transition-opacity">
+                        <span>
+                          {app.status === 'Resubmission Required'
+                            ? '⚠️ Payment details need correction. Click to update.'
+                            : '🎉 Fully approved! Click to submit your payment details.'}
+                        </span>
+                        <span className="underline whitespace-nowrap flex-shrink-0">Open →</span>
+                      </Link>
+                    )}
+
+                    {/* Payment submitted banner */}
+                    {app.status === 'Payment Details Submitted' && (
+                      <Link to={`/student/payment/${app.id}`}
+                        className="mt-3 flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors">
+                        <span>💳 Payment details submitted — awaiting donor verification.</span>
+                        <span className="underline whitespace-nowrap flex-shrink-0">View →</span>
+                      </Link>
+                    )}
+
+                    {/* Payment verified banner */}
+                    {app.status === 'Payment Verified' && (
+                      <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
+                        ✅ Payment details verified. Scholarship funds will be disbursed shortly.
                       </div>
                     )}
 
