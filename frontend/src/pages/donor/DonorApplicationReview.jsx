@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   Eye, Download, CheckCircle, XCircle, ArrowLeft,
   User, BookOpen, DollarSign, FileText, Users, GraduationCap,
   MapPin, Phone, Mail, CreditCard, Clock, Building, Calendar,
-  Home, Hash, Briefcase, Star, Info, ChevronDown, ChevronUp
+  Home, Hash, Briefcase, Star, Info, ChevronDown, ChevronUp,
+  Lock, AlertCircle, RotateCcw, RefreshCw
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../../components/common/StatusBadge'
@@ -199,13 +200,23 @@ export default function DonorApplicationReview() {
   const { id } = useParams()  // donor_students.id
   const navigate = useNavigate()
 
-  const [assignment, setAssignment] = useState(null) // row from /donor/students list
-  const [app, setApp]         = useState(null)
-  const [docs, setDocs]       = useState([])
-  const [loading, setLoading] = useState(true)
-  const [action, setAction]   = useState(null)  // 'Approved' | 'Rejected'
-  const [comment, setComment] = useState('')
+  const [assignment, setAssignment] = useState(null)
+  const [app, setApp]               = useState(null)
+  const [docs, setDocs]             = useState([])
+  const [payment, setPayment]       = useState(null)
+  const [loading, setLoading]       = useState(true)
+  const [action, setAction]         = useState(null)
+  const [comment, setComment]       = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [refreshingPayment, setRefreshingPayment] = useState(false)
+
+  const loadPayment = async (applicationId) => {
+    if (!applicationId) return
+    try {
+      const r = await api.get(`/payment/${applicationId}`)
+      setPayment(r.data)
+    } catch { setPayment(null) }
+  }
 
   const load = () => {
     setLoading(true)
@@ -217,13 +228,29 @@ export default function DonorApplicationReview() {
           return Promise.all([
             api.get(`/applications/${found.application_id}`).catch(() => ({ data: {} })),
             api.get(`/applications/${found.application_id}/documents`).catch(() => ({ data: [] })),
-          ]).then(([a, d]) => { setApp(a.data); setDocs(d.data) })
+            api.get(`/payment/${found.application_id}`).catch(() => ({ data: null })),
+          ]).then(([a, d, p]) => {
+            setApp(a.data)
+            setDocs(d.data)
+            setPayment(p.data)
+          })
         }
       })
       .catch(() => toast.error('Could not load application'))
       .finally(() => setLoading(false))
   }
   useEffect(() => { load() }, [id])
+
+  // Auto-refresh payment status every 20 seconds
+  useEffect(() => {
+    if (!assignment?.application_id) return
+    const interval = setInterval(async () => {
+      setRefreshingPayment(true)
+      await loadPayment(assignment.application_id)
+      setRefreshingPayment(false)
+    }, 20000)
+    return () => clearInterval(interval)
+  }, [assignment?.application_id])
 
   const handleSubmit = async () => {
     if (!action) return
@@ -488,7 +515,180 @@ export default function DonorApplicationReview() {
         </Section>
       )}
 
-      {/* ── 7. Decision Panel (sticky bottom bar) ── */}
+      {/* ── 7. Payment Details ── */}
+      {assignment.donor_decision === 'Approved' && (
+        <div className="card overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b bg-purple-50 border-purple-100">
+            <div className="flex items-center gap-2">
+              <CreditCard size={17} className="text-purple-700"/>
+              <h2 className="font-semibold text-sm text-purple-700">Payment Details</h2>
+              {payment?.payment_details_status && (
+                <StatusBadge status={payment.payment_details_status}/>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                setRefreshingPayment(true)
+                await loadPayment(assignment.application_id)
+                setRefreshingPayment(false)
+              }}
+              disabled={refreshingPayment}
+              className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 disabled:opacity-50">
+              <RefreshCw size={12} className={refreshingPayment ? 'animate-spin' : ''}/>
+              {refreshingPayment ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+
+          <div className="p-6">
+            {/* No payment submitted yet */}
+            {(!payment || payment.payment_details_status === 'Locked') && (
+              <div className="flex items-center gap-3 py-4 text-slate-400">
+                <Lock size={18} className="flex-shrink-0"/>
+                <div>
+                  <p className="text-sm font-medium text-slate-600">Payment details not yet submitted</p>
+                  <p className="text-xs mt-0.5">The student will be able to submit payment details once both approvals are complete.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Unlocked but not yet submitted */}
+            {payment?.payment_details_status === 'Unlocked' && (
+              <div className="flex items-center gap-3 py-4 text-blue-600 bg-blue-50 rounded-xl px-4">
+                <CreditCard size={18} className="flex-shrink-0"/>
+                <div>
+                  <p className="text-sm font-semibold">Payment section is unlocked</p>
+                  <p className="text-xs mt-0.5 text-blue-500">Waiting for the student to fill in their bank details.</p>
+                </div>
+              </div>
+            )}
+
+            {/* Payment submitted / under review / resubmission */}
+            {payment && !['Locked','Unlocked'].includes(payment.payment_details_status) && (
+              <div className="space-y-5">
+
+                {/* Resubmission required alert */}
+                {payment.payment_details_status === 'Resubmission Required' && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
+                    <p className="text-sm font-semibold text-red-700 flex items-center gap-2">
+                      <AlertCircle size={15}/> Resubmission Requested
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <p className="text-red-500 font-medium">Reason</p>
+                        <p className="text-red-700 font-semibold mt-0.5">{payment.resubmission_reason}</p>
+                      </div>
+                      {payment.donor_payment_comments && (
+                        <div>
+                          <p className="text-red-500 font-medium">Your Comments</p>
+                          <p className="text-red-700 mt-0.5">{payment.donor_payment_comments}</p>
+                        </div>
+                      )}
+                    </div>
+                    {payment.payment_resubmission_count > 0 && (
+                      <p className="text-xs text-red-400 flex items-center gap-1">
+                        <RotateCcw size={10}/> Resubmission #{payment.payment_resubmission_count}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Verified banner */}
+                {payment.payment_details_status === 'Verified' && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+                    <CheckCircle size={18} className="text-green-600 flex-shrink-0"/>
+                    <div>
+                      <p className="font-semibold text-green-700 text-sm">Payment Details Verified ✓</p>
+                      {payment.payment_verified_date && (
+                        <p className="text-xs text-green-500 mt-0.5">
+                          Verified on {format(new Date(payment.payment_verified_date), 'MMM d, yyyy · h:mm a')}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Bank details grid */}
+                <div>
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Bank Account Information</p>
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {[
+                      { label: 'Account Holder Name', value: payment.account_holder_name, icon: User },
+                      { label: 'Bank Name',           value: payment.bank_name,           icon: Building },
+                      { label: 'Branch Name',         value: payment.branch_name,         icon: Building },
+                      { label: 'Account Number',      value: payment.account_number,      icon: Hash },
+                      { label: 'Account Type',        value: payment.account_type,        icon: CreditCard },
+                      { label: 'Contact Number',      value: payment.contact_number,      icon: Phone },
+                    ].map(({ label, value, icon: Icon }) => (
+                      <div key={label} className="bg-slate-50 rounded-xl p-3.5">
+                        <p className="text-xs text-slate-400 flex items-center gap-1 mb-0.5">
+                          <Icon size={10}/>{label}
+                        </p>
+                        <p className="text-sm font-semibold text-slate-800">{value || '—'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Passbook */}
+                {payment.passbook_url && (
+                  <div>
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Bank Passbook</p>
+                    <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                      <FileText size={14} className="text-green-600 flex-shrink-0"/>
+                      <p className="text-xs text-green-700 font-medium flex-1 truncate">
+                        {payment.passbook_file_name || 'Bank passbook document'}
+                      </p>
+                      <button onClick={() => viewDocument(payment.passbook_url)}
+                        className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-medium flex-shrink-0">
+                        <Eye size={12}/> View
+                      </button>
+                      <a href={payment.passbook_url} download={payment.passbook_file_name}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 flex-shrink-0">
+                        <Download size={12}/> Download
+                      </a>
+                    </div>
+                  </div>
+                )}
+
+                {/* Metadata */}
+                <div className="flex items-center gap-4 text-xs text-slate-400 pt-1 border-t border-slate-100">
+                  {payment.updated_at && (
+                    <span className="flex items-center gap-1">
+                      <Clock size={11}/>
+                      Last updated {format(new Date(payment.updated_at), 'MMM d, yyyy · h:mm a')}
+                    </span>
+                  )}
+                  {payment.payment_resubmission_count > 0 && (
+                    <span className="flex items-center gap-1">
+                      <RotateCcw size={11}/>
+                      {payment.payment_resubmission_count} resubmission{payment.payment_resubmission_count > 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+
+                {/* Payment action buttons — only when submitted/re-submitted */}
+                {['Submitted','Re-Submitted','Pending Verification'].includes(payment.payment_details_status) && (
+                  <div className="pt-3 border-t border-slate-100">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Payment Verification</p>
+                    <div className="flex flex-wrap gap-3">
+                      <Link to="/donor/payments"
+                        className="btn-primary flex items-center gap-2">
+                        <CheckCircle size={15}/> Review & Verify Payment
+                      </Link>
+                      <p className="text-xs text-slate-400 self-center">
+                        Go to the Payments page to verify or request correction.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── 8. Decision Panel (sticky bottom bar) ── */}
       {!alreadyDecided ? (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] z-30">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">

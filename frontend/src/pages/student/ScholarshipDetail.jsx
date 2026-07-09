@@ -482,19 +482,35 @@ function Step4Academic({ data, onChange, errors }) {
 // ═══════════════════════════════════════════════════════════════
 // STEP 5 — Documents
 // ═══════════════════════════════════════════════════════════════
-function Step5Documents({ appId, onDocsChange }) {
-  const [docs, setDocs]       = useState({})
-  const [uploading, setUploading] = useState(null)
-  const [previews, setPreviews]   = useState({})
+function Step5Documents({ appId, onDocsChange, onNeedSave }) {
+  const [docs, setDocs]             = useState({})
+  const [serverDocs, setServerDocs] = useState([])
+  const [uploading, setUploading]   = useState(null)
+  const [previews, setPreviews]     = useState({})
   const fileRefs = useRef({})
 
-  const uploadedCount = Object.values(docs).filter(Boolean).length
+  // Load already-uploaded docs whenever appId becomes available
+  useEffect(() => {
+    if (!appId) return
+    api.get(`/applications/${appId}/documents`)
+      .then(r => setServerDocs(r.data || []))
+      .catch(() => {})
+  }, [appId])
+
+  const serverUploadedNames = serverDocs.map(d => d.document_name)
 
   const handleFile = async (key, file) => {
     if (!file) return
     const allowed = ['application/pdf','image/jpeg','image/png','image/jpg']
     if (!allowed.includes(file.type)) { toast.error('Only PDF, JPG, PNG allowed'); return }
     if (file.size > 5 * 1024 * 1024)  { toast.error('Max 5MB per file'); return }
+
+    // Must have an appId to upload — ask parent to save draft first
+    if (!appId) {
+      toast('Click "Save Draft" first to create your application, then upload documents.', { icon: '⚠️' })
+      if (onNeedSave) onNeedSave()
+      return
+    }
 
     // Local preview for images
     if (file.type.startsWith('image/')) {
@@ -505,21 +521,23 @@ function Step5Documents({ appId, onDocsChange }) {
       setPreviews(p => ({ ...p, [key]: null }))
     }
 
-    if (appId) {
-      setUploading(key)
-      try {
-        const fd = new FormData()
-        fd.append('file', file)
-        fd.append('document_name', REQUIRED_DOCS.find(d => d.key === key).label)
-        await api.post(`/applications/${appId}/documents`, fd, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        })
-        toast.success('Document uploaded!')
-      } catch (err) {
-        toast.error(err?.response?.data?.message || 'Upload failed')
-      } finally {
-        setUploading(null)
-      }
+    setUploading(key)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('document_name', REQUIRED_DOCS.find(d => d.key === key).label)
+      await api.post(`/applications/${appId}/documents`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      toast.success('Document uploaded successfully!')
+      // Refresh server doc list so admin/donor can see it immediately
+      const r = await api.get(`/applications/${appId}/documents`)
+      setServerDocs(r.data || [])
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Upload failed')
+    } finally {
+      setUploading(null)
+      if (fileRefs.current[key]) fileRefs.current[key].value = ''
     }
 
     const updated = { ...docs, [key]: { file, name: file.name, size: file.size } }
@@ -540,19 +558,32 @@ function Step5Documents({ appId, onDocsChange }) {
     ? `${(bytes / 1024).toFixed(0)} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 
+  // Count both local and server uploads
+  const totalUploaded = REQUIRED_DOCS.filter(({ key, label }) =>
+    docs[key] || serverUploadedNames.includes(label)
+  ).length
+
   return (
     <div className="space-y-5">
       <SectionHeader title="Required Documents" subtitle="Upload all required documents before submitting." />
+
+      {/* No appId warning */}
+      {!appId && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 flex items-start gap-2">
+          <AlertCircle size={15} className="flex-shrink-0 mt-0.5"/>
+          <span>Click <strong>Save Draft</strong> first, then you can upload your documents.</span>
+        </div>
+      )}
 
       {/* Progress */}
       <div className="bg-purple-50 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold text-purple-700">Upload Progress</span>
-          <span className="text-sm font-bold text-purple-700">{uploadedCount} / {REQUIRED_DOCS.length} Uploaded</span>
+          <span className="text-sm font-bold text-purple-700">{totalUploaded} / {REQUIRED_DOCS.length} Uploaded</span>
         </div>
         <div className="w-full h-2.5 bg-purple-200 rounded-full overflow-hidden">
           <div className="h-full bg-purple-600 rounded-full transition-all duration-500"
-            style={{ width: `${(uploadedCount / REQUIRED_DOCS.length) * 100}%` }} />
+            style={{ width: `${(totalUploaded / REQUIRED_DOCS.length) * 100}%` }} />
         </div>
         <div className="flex justify-between text-xs text-purple-500 mt-1">
           <span>Allowed: PDF, JPG, JPEG, PNG</span>
@@ -563,43 +594,53 @@ function Step5Documents({ appId, onDocsChange }) {
       {/* Document rows */}
       <div className="space-y-3">
         {REQUIRED_DOCS.map(({ key, label }) => {
-          const doc = docs[key]
-          const isUp = uploading === key
+          const localDoc  = docs[key]
+          const serverDoc = serverDocs.find(d => d.document_name === label)
+          const isDone    = !!localDoc || !!serverDoc
+          const isUp      = uploading === key
 
           return (
             <div key={key} className={`rounded-xl border-2 transition-all overflow-hidden
-              ${doc ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'}`}>
+              ${isDone ? 'border-green-200 bg-green-50/30' : 'border-slate-200 bg-white'}`}>
               <div className="flex items-center gap-3 p-4">
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
-                  ${doc ? 'bg-green-100' : 'bg-slate-100'}`}>
-                  {doc ? <Check size={18} className="text-green-600"/> : <FileText size={18} className="text-slate-400"/>}
+                  ${isDone ? 'bg-green-100' : 'bg-slate-100'}`}>
+                  {isDone ? <Check size={18} className="text-green-600"/> : <FileText size={18} className="text-slate-400"/>}
                 </div>
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-800">{label}</p>
-                  {doc ? (
-                    <p className="text-xs text-slate-500 truncate">{doc.name} · {formatSize(doc.size)}</p>
+                  {serverDoc ? (
+                    <p className="text-xs text-green-600 truncate">
+                      ✓ {serverDoc.file_name || 'Uploaded'}
+                      {serverDoc.file_url && (
+                        <button onClick={() => window.open(serverDoc.file_url, '_blank')}
+                          className="ml-2 underline text-purple-600 hover:text-purple-800">View</button>
+                      )}
+                    </p>
+                  ) : localDoc ? (
+                    <p className="text-xs text-slate-500 truncate">{localDoc.name} · {formatSize(localDoc.size)}</p>
                   ) : (
-                    <p className="text-xs text-slate-400">Not uploaded</p>
+                    <p className="text-xs text-red-400">Not uploaded</p>
                   )}
                 </div>
 
                 {/* Status */}
-                {doc
+                {isDone
                   ? <span className="badge-green flex-shrink-0">✓ Uploaded</span>
                   : <span className="badge-red flex-shrink-0">Missing</span>}
 
                 {/* Actions */}
                 <div className="flex items-center gap-1 flex-shrink-0">
-                  {doc?.file && doc.file.type.startsWith('image/') && previews[key] && (
+                  {localDoc?.file && localDoc.file.type.startsWith('image/') && previews[key] && (
                     <a href={previews[key]} target="_blank" rel="noreferrer"
                       className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors">
                       <Eye size={15}/>
                     </a>
                   )}
-                  {doc && (
+                  {localDoc && !serverDoc && (
                     <button onClick={() => removeDoc(key)}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors">
                       <Trash2 size={15}/>
@@ -610,13 +651,13 @@ function Step5Documents({ appId, onDocsChange }) {
                     onChange={e => handleFile(key, e.target.files[0])} />
                   <button
                     onClick={() => fileRefs.current[key]?.click()}
-                    disabled={isUp}
+                    disabled={isUp || !appId}
                     className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors
-                      ${doc ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-purple-600 text-white hover:bg-purple-700'}
-                      disabled:opacity-50`}>
+                      ${isDone ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-purple-600 text-white hover:bg-purple-700'}
+                      disabled:opacity-50 disabled:cursor-not-allowed`}>
                     {isUp
                       ? <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"/> Uploading</>
-                      : <><Upload size={12}/> {doc ? 'Replace' : 'Upload'}</>}
+                      : <><Upload size={12}/> {isDone ? 'Replace' : 'Upload'}</>}
                   </button>
                 </div>
               </div>
@@ -633,7 +674,7 @@ function Step5Documents({ appId, onDocsChange }) {
         })}
       </div>
 
-      {uploadedCount < REQUIRED_DOCS.length && (
+      {totalUploaded < REQUIRED_DOCS.length && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
           ⚠️ Please upload all {REQUIRED_DOCS.length} required documents before submitting.
         </div>
@@ -878,7 +919,7 @@ export default function ScholarshipDetail() {
             {step === 3 && <Step4Academic  data={formData} onChange={updateField} errors={errors} />}
             {step === 4 && (
               <div className="space-y-6">
-                <Step5Documents appId={savedAppId} onDocsChange={setDocs} />
+                <Step5Documents appId={savedAppId} onDocsChange={setDocs} onNeedSave={handleSaveDraft} />
 
                 {/* Declaration */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -911,10 +952,11 @@ export default function ScholarshipDetail() {
             </button>
 
             <div className="flex items-center gap-3">
-              {step === 4 && (
+              {/* Save Draft visible from step 3 onwards so student can get an appId before Step 5 */}
+              {step >= 3 && (
                 <button onClick={handleSaveDraft}
                   className="btn-secondary text-sm px-4 py-2">
-                  Save Draft
+                  {savedAppId ? 'Save Draft' : 'Save Draft'}
                 </button>
               )}
 

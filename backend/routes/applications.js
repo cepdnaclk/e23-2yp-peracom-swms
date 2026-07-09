@@ -65,11 +65,29 @@ router.get('/:id/donor-decision', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// GET /api/applications/:id/documents
+// GET /api/applications/:id/documents  — admin, donor, or the owning student
 router.get('/:id/documents', authenticate, async (req, res) => {
   try {
+    // Access check
+    if (req.user.role === 'student') {
+      const check = await query(
+        'SELECT id FROM applications WHERE id = $1 AND student_id = $2',
+        [req.params.id, req.user.id])
+      if (!check.rows.length) return res.status(403).json({ message: 'Forbidden' })
+    } else if (req.user.role === 'donor') {
+      const check = await query(
+        'SELECT id FROM donor_students WHERE application_id = $1 AND donor_id = $2',
+        [req.params.id, req.user.id])
+      if (!check.rows.length) return res.status(403).json({ message: 'Forbidden' })
+    }
+    // admin passes through
+
     const result = await query(
-      `SELECT DISTINCT ON (document_name) *
+      `SELECT DISTINCT ON (document_name)
+         id, application_id, document_name, file_name,
+         -- Never send base64 data URLs to client — just flag them
+         CASE WHEN file_url LIKE 'data:%' THEN file_url ELSE file_url END AS file_url,
+         status, created_at, updated_at
        FROM application_documents
        WHERE application_id = $1
        ORDER BY document_name, created_at DESC`,
@@ -91,20 +109,35 @@ router.post('/:id/documents', authenticate, upload.single('file'), async (req, r
     if (!appCheck.rows.length) return res.status(403).json({ message: 'Forbidden' })
 
     let fileUrl = null
+
+    // Try Supabase Storage first
     try {
       const ext = req.file.originalname.split('.').pop()
       const filePath = `documents/${req.params.id}/${document_name.replace(/\s+/g,'_')}_${Date.now()}.${ext}`
       fileUrl = await uploadFile('welfare-docs', filePath, req.file.buffer, req.file.mimetype)
     } catch (storageErr) {
-      console.warn('Storage upload failed:', storageErr.message)
+      console.warn('Supabase storage unavailable, using base64 fallback:', storageErr.message)
+      // Fallback: store as base64 data URL so admin/donor can still view the file
+      const base64 = req.file.buffer.toString('base64')
+      fileUrl = `data:${req.file.mimetype};base64,${base64}`
     }
 
+    // Upsert: replace existing doc of same name for this application
+    await query(
+      `DELETE FROM application_documents
+       WHERE application_id = $1 AND document_name = $2`,
+      [req.params.id, document_name])
+
     const result = await query(
-      `INSERT INTO application_documents (application_id, document_name, file_name, file_url, status)
+      `INSERT INTO application_documents
+         (application_id, document_name, file_name, file_url, status)
        VALUES ($1, $2, $3, $4, 'Submitted') RETURNING *`,
       [req.params.id, document_name, req.file.originalname, fileUrl])
     res.status(201).json(result.rows[0])
-  } catch (err) { res.status(500).json({ message: err.message }) }
+  } catch (err) {
+    console.error('Document upload error:', err)
+    res.status(500).json({ message: err.message })
+  }
 })
 
 // PATCH /api/applications/:id/documents/:docId/verify  — admin
