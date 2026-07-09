@@ -40,8 +40,43 @@ const calcAge = (dob) => {
   return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25))
 }
 
+const validateMobile = (value) => {
+  if (!value) return 'Mobile Number is required.'
+  if (!/^\d+$/.test(value)) return 'Only numeric characters are allowed.'
+  if (!value.startsWith('07')) return 'Mobile Number must start with 07.'
+  if (value.length !== 10) return 'Mobile Number must contain exactly 10 digits.'
+  return ''
+}
+
+const validateEmail = (value) => {
+  if (!value) return 'Email Address is required.'
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address.'
+  return ''
+}
+
+const validateRegNo = (value) => {
+  if (!value) return 'Registration Number is required.'
+  if (value[0] !== 'E') return "The first character must be uppercase 'E'."
+  if (!/^E\d{5}$/.test(value)) return 'Registration Number must follow the format EYYXXX (Example: E21001).'
+  return ''
+}
+
+const validateContactNumber = (value) => {
+  if (!value) return 'Contact Number is required.'
+  if (!/^\d+$/.test(value)) return 'Only numeric characters are allowed.'
+  if (!value.startsWith('07')) return 'Contact Number must start with 07.'
+  if (value.length !== 10) return 'Contact Number must contain exactly 10 digits.'
+  return ''
+}
+
+const preventInvalidNumberInput = (e) => {
+  if (['e', 'E', '-', '+'].includes(e.key)) {
+    e.preventDefault()
+  }
+}
+
 const emptySchoolSibling = () => ({ name: '', dob: '', school: '' })
-const emptyUniSibling    = () => ({ name: '', university: '', course: '', al_year: '', al_index: '', mahapola: '' })
+const emptyUniSibling    = () => ({ name: '', university: '', course: '', al_year: '', mahapola: '' })
 
 // ─── Step Indicator ──────────────────────────────────────────
 function StepIndicator({ current }) {
@@ -98,7 +133,34 @@ function SectionHeader({ title, subtitle }) {
 // ═══════════════════════════════════════════════════════════════
 // STEP 1 — Personal Information
 // ═══════════════════════════════════════════════════════════════
-function Step1Personal({ data, onChange, errors }) {
+function Step1Personal({ data, onChange, errors, mobileTouched, emailTouched, regNoTouched }) {
+  const getRegNoClass = () => {
+    const val = data.registration_number || ''
+    if (!val && !regNoTouched) return 'input-field'
+    const err = validateRegNo(val)
+    return err
+      ? 'input-field border-red-500 focus:border-red-500 focus:ring-red-100'
+      : 'input-field border-green-500 focus:border-green-500 focus:ring-green-100'
+  }
+
+  const getMobileClass = () => {
+    const val = data.mobile || ''
+    if (!val && !mobileTouched) return 'input-field'
+    const err = validateMobile(val)
+    return err
+      ? 'input-field border-red-500 focus:border-red-500 focus:ring-red-100'
+      : 'input-field border-green-500 focus:border-green-500 focus:ring-green-100'
+  }
+
+  const getEmailClass = () => {
+    const val = data.email || ''
+    if (!val && !emailTouched) return 'input-field'
+    const err = validateEmail(val)
+    return err
+      ? 'input-field border-red-500 focus:border-red-500 focus:ring-red-100'
+      : 'input-field border-green-500 focus:border-green-500 focus:ring-green-100'
+  }
+
   const f = (field) => ({
     value: data[field] || '',
     onChange: e => onChange(field, e.target.value),
@@ -135,16 +197,37 @@ function Step1Personal({ data, onChange, errors }) {
         </Field>
 
         <Field label="Registration Number" required error={errors.registration_number}>
-          <input type="text" placeholder="e.g. E/20/001" {...f('registration_number')} />
+          <input
+            id="registration_number"
+            type="text"
+            placeholder="e.g. E21001"
+            value={data.registration_number || ''}
+            onChange={e => onChange('registration_number', e.target.value)}
+            className={getRegNoClass()}
+          />
         </Field>
 
         <Field label="Mobile Number" required error={errors.mobile}>
-          <input type="tel" placeholder="e.g. 0771234567" {...f('mobile')} />
+          <input
+            id="mobile"
+            type="tel"
+            placeholder="e.g. 0771234567"
+            value={data.mobile || ''}
+            onChange={e => onChange('mobile', e.target.value)}
+            className={getMobileClass()}
+          />
         </Field>
 
         <div className="sm:col-span-2">
           <Field label="Email Address" required error={errors.email}>
-            <input type="email" placeholder="your@email.com" {...f('email')} />
+            <input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={data.email || ''}
+              onChange={e => onChange('email', e.target.value)}
+              className={getEmailClass()}
+            />
           </Field>
         </div>
       </div>
@@ -279,10 +362,6 @@ function Step2Family({ data, onChange }) {
                     onChange={e => updateUni(i,'al_year',e.target.value)} className="input-field" />
                 </Field>
 
-                <Field label="A/L Index Number">
-                  <input type="text" placeholder="e.g. 1234567" value={s.al_index}
-                    onChange={e => updateUni(i,'al_index',e.target.value)} className="input-field" />
-                </Field>
 
                 <Field label="Receiving Mahapola / Bursary?">
                   <div className="flex gap-4 mt-1">
@@ -312,7 +391,16 @@ function Step2Family({ data, onChange }) {
 }
 
 // ─── Guardian Section (hoisted to top level so it isn't recreated on every keystroke) ───
-function GuardianSection({ prefix, title, data, onChange, errors }) {
+function GuardianSection({ prefix, title, placeholder, data, onChange, errors, contactTouched }) {
+  const getContactClass = () => {
+    const val = data[`${prefix}_contact`] || ''
+    if (!val && !contactTouched) return 'input-field'
+    const err = validateContactNumber(val)
+    return err
+      ? 'input-field border-red-500 focus:border-red-500 focus:ring-red-100'
+      : 'input-field border-green-500 focus:border-green-500 focus:ring-green-100'
+  }
+
   const f = (field) => ({
     value: data[field] || '',
     onChange: e => onChange(field, e.target.value),
@@ -329,13 +417,32 @@ function GuardianSection({ prefix, title, data, onChange, errors }) {
           <input type="text" placeholder="Occupation" {...f(`${prefix}_occupation`)} />
         </Field>
         <Field label="Monthly Income (LKR)" error={errors[`${prefix}_income`]}>
-          <input type="number" min="0" placeholder="0" {...f(`${prefix}_income`)} />
+          <div className="relative rounded-xl shadow-sm">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <span className="text-slate-400 text-sm font-medium">LKR</span>
+            </div>
+            <input
+              type="number"
+              min="0"
+              placeholder={placeholder}
+              {...f(`${prefix}_income`)}
+              className={`${f(`${prefix}_income`).className} pl-12`}
+              onKeyDown={preventInvalidNumberInput}
+            />
+          </div>
         </Field>
         <Field label="Employer Name">
           <input type="text" placeholder="Employer / Company" {...f(`${prefix}_employer`)} />
         </Field>
-        <Field label="Contact Number">
-          <input type="tel" placeholder="07XXXXXXXX" {...f(`${prefix}_contact`)} />
+        <Field label="Contact Number" required error={errors[`${prefix}_contact`]}>
+          <input
+            id={`${prefix}_contact`}
+            type="tel"
+            placeholder="0771234567"
+            value={data[`${prefix}_contact`] || ''}
+            onChange={e => onChange(`${prefix}_contact`, e.target.value)}
+            className={getContactClass()}
+          />
         </Field>
       </div>
     </div>
@@ -345,7 +452,7 @@ function GuardianSection({ prefix, title, data, onChange, errors }) {
 // ═══════════════════════════════════════════════════════════════
 // STEP 3 — Financial Details
 // ═══════════════════════════════════════════════════════════════
-function Step3Financial({ data, onChange, errors }) {
+function Step3Financial({ data, onChange, errors, fatherContactTouched, motherContactTouched }) {
   const f = (field) => ({
     value: data[field] || '',
     onChange: e => onChange(field, e.target.value),
@@ -358,9 +465,9 @@ function Step3Financial({ data, onChange, errors }) {
       <div>
         <SectionHeader title="A. Parent / Guardian Information" />
         <div className="space-y-6">
-          <GuardianSection prefix="father" title="Father / Guardian" data={data} onChange={onChange} errors={errors} />
+          <GuardianSection prefix="father" title="Father / Guardian" placeholder="50000" data={data} onChange={onChange} errors={errors} contactTouched={fatherContactTouched} />
           <div className="border-t border-slate-100 pt-6">
-            <GuardianSection prefix="mother" title="Mother / Guardian" data={data} onChange={onChange} errors={errors} />
+            <GuardianSection prefix="mother" title="Mother / Guardian" placeholder="75000" data={data} onChange={onChange} errors={errors} contactTouched={motherContactTouched} />
           </div>
         </div>
       </div>
@@ -370,7 +477,19 @@ function Step3Financial({ data, onChange, errors }) {
         <SectionHeader title="B. Family Income Details" />
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Total Monthly Family Income (LKR)" error={errors.total_family_income}>
-            <input type="number" min="0" placeholder="e.g. 45000" {...f('total_family_income')} />
+            <div className="relative rounded-xl shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-slate-400 text-sm font-medium">LKR</span>
+              </div>
+              <input
+                type="number"
+                min="0"
+                placeholder="100000"
+                {...f('total_family_income')}
+                className={`${f('total_family_income').className} pl-12`}
+                onKeyDown={preventInvalidNumberInput}
+              />
+            </div>
           </Field>
 
           <Field label="Number of Family Members">
@@ -418,8 +537,20 @@ function Step3Financial({ data, onChange, errors }) {
             <input type="text" placeholder="Scholarship name (if any)" {...f('other_scholarships')} />
           </Field>
 
-          <Field label="Total Other Scholarship Amount (LKR)">
-            <input type="number" min="0" placeholder="0" {...f('other_scholarship_amount')} />
+          <Field label="Total Other Scholarship Amount (LKR)" error={errors.other_scholarship_amount}>
+            <div className="relative rounded-xl shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span className="text-slate-400 text-sm font-medium">LKR</span>
+              </div>
+              <input
+                type="number"
+                min="0"
+                placeholder="0"
+                {...f('other_scholarship_amount')}
+                className={`${f('other_scholarship_amount').className} pl-12`}
+                onKeyDown={preventInvalidNumberInput}
+              />
+            </div>
           </Field>
         </div>
       </div>
@@ -704,6 +835,12 @@ export default function ScholarshipDetail() {
   const [formData, setFormData] = useState({})
   const [errors, setErrors]     = useState({})
 
+  const [mobileTouched, setMobileTouched] = useState(false)
+  const [emailTouched, setEmailTouched] = useState(false)
+  const [regNoTouched, setRegNoTouched] = useState(false)
+  const [fatherContactTouched, setFatherContactTouched] = useState(false)
+  const [motherContactTouched, setMotherContactTouched] = useState(false)
+
   useEffect(() => {
     api.get(`/scholarships/${id}`)
       .then(r => setScholarship(r.data))
@@ -730,7 +867,29 @@ export default function ScholarshipDetail() {
 
   const updateField = (field, value) => {
     setFormData(p => ({ ...p, [field]: value }))
-    setErrors(p => ({ ...p, [field]: '' }))
+    if (field === 'mobile') {
+      setMobileTouched(true)
+      const err = validateMobile(value)
+      setErrors(p => ({ ...p, mobile: err }))
+    } else if (field === 'email') {
+      setEmailTouched(true)
+      const err = validateEmail(value)
+      setErrors(p => ({ ...p, email: err }))
+    } else if (field === 'registration_number') {
+      setRegNoTouched(true)
+      const err = validateRegNo(value)
+      setErrors(p => ({ ...p, registration_number: err }))
+    } else if (field === 'father_contact') {
+      setFatherContactTouched(true)
+      const err = validateContactNumber(value)
+      setErrors(p => ({ ...p, father_contact: err }))
+    } else if (field === 'mother_contact') {
+      setMotherContactTouched(true)
+      const err = validateContactNumber(value)
+      setErrors(p => ({ ...p, mother_contact: err }))
+    } else {
+      setErrors(p => ({ ...p, [field]: '' }))
+    }
   }
 
   // ── Validate per step ──
@@ -741,13 +900,53 @@ export default function ScholarshipDetail() {
       if (!formData.postal_address)    e.postal_address    = 'Postal address is required'
       if (!formData.district)          e.district          = 'District is required'
       if (!formData.nic_number)        e.nic_number        = 'NIC number is required'
-      if (!formData.registration_number) e.registration_number = 'Registration number is required'
-      if (!formData.mobile)            e.mobile            = 'Mobile number is required'
-      if (!formData.email)             e.email             = 'Email is required'
+      
+      const regNoErr = validateRegNo(formData.registration_number)
+      if (regNoErr) {
+        e.registration_number = regNoErr
+        setRegNoTouched(true)
+      }
+      
+      const mobileErr = validateMobile(formData.mobile)
+      if (mobileErr) {
+        e.mobile = mobileErr
+        setMobileTouched(true)
+      }
+      
+      const emailErr = validateEmail(formData.email)
+      if (emailErr) {
+        e.email = emailErr
+        setEmailTouched(true)
+      }
     }
     if (step === 2) {
-      if (!formData.total_family_income)
+      if (!formData.total_family_income) {
         e.total_family_income = 'Total monthly family income is required'
+      } else if (parseFloat(formData.total_family_income) < 0) {
+        e.total_family_income = 'Total monthly family income must be a positive value'
+      }
+
+      if (formData.father_income && parseFloat(formData.father_income) < 0) {
+        e.father_income = 'Father / Guardian Monthly Income must be a positive value'
+      }
+      if (formData.mother_income && parseFloat(formData.mother_income) < 0) {
+        e.mother_income = 'Mother / Guardian Monthly Income must be a positive value'
+      }
+      if (formData.other_scholarship_amount && parseFloat(formData.other_scholarship_amount) < 0) {
+        e.other_scholarship_amount = 'Total Other Scholarship Amount must be a positive value'
+      }
+
+      const fatherContactErr = validateContactNumber(formData.father_contact)
+      if (fatherContactErr) {
+        e.father_contact = fatherContactErr
+        setFatherContactTouched(true)
+      }
+
+      const motherContactErr = validateContactNumber(formData.mother_contact)
+      if (motherContactErr) {
+        e.mother_contact = motherContactErr
+        setMotherContactTouched(true)
+      }
     }
     if (step === 3) {
       if (!formData.current_year) e.current_year = 'Current year is required'
@@ -812,6 +1011,54 @@ export default function ScholarshipDetail() {
   })
 
   const handleSubmit = async () => {
+    // Perform final validation check before submission
+    const regNoErr = validateRegNo(formData.registration_number)
+    const mobileErr = validateMobile(formData.mobile)
+    const emailErr = validateEmail(formData.email)
+    const fatherContactErr = validateContactNumber(formData.father_contact)
+    const motherContactErr = validateContactNumber(formData.mother_contact)
+
+    if (regNoErr || mobileErr || emailErr || fatherContactErr || motherContactErr) {
+      setRegNoTouched(true)
+      setMobileTouched(true)
+      setEmailTouched(true)
+      setFatherContactTouched(true)
+      setMotherContactTouched(true)
+      setErrors(p => ({
+        ...p,
+        registration_number: regNoErr,
+        mobile: mobileErr,
+        email: emailErr,
+        father_contact: fatherContactErr,
+        mother_contact: motherContactErr
+      }))
+
+      if (regNoErr || mobileErr || emailErr) {
+        setStep(0) // Prevent submission and return to step 1
+        setTimeout(() => {
+          const fieldId = regNoErr ? 'registration_number' : (mobileErr ? 'mobile' : 'email')
+          const element = document.getElementById(fieldId)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.focus()
+          }
+        }, 100)
+      } else {
+        setStep(2) // Prevent submission and return to step 3 (Financial Details)
+        setTimeout(() => {
+          const fieldId = fatherContactErr ? 'father_contact' : 'mother_contact'
+          const element = document.getElementById(fieldId)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.focus()
+          }
+        }, 100)
+      }
+
+      toast.error(regNoErr || mobileErr || emailErr || fatherContactErr || motherContactErr)
+      return
+    }
+
     if (!declared) { toast.error('Please check the declaration checkbox'); return }
     const uploadedCount = Object.values(docs).filter(Boolean).length
     if (uploadedCount < REQUIRED_DOCS.length) {
@@ -913,9 +1160,9 @@ export default function ScholarshipDetail() {
 
           {/* Step content */}
           <div className="min-h-[300px]">
-            {step === 0 && <Step1Personal data={formData} onChange={updateField} errors={errors} />}
+            {step === 0 && <Step1Personal data={formData} onChange={updateField} errors={errors} mobileTouched={mobileTouched} emailTouched={emailTouched} />}
             {step === 1 && <Step2Family   data={formData} onChange={updateField} />}
-            {step === 2 && <Step3Financial data={formData} onChange={updateField} errors={errors} />}
+            {step === 2 && <Step3Financial data={formData} onChange={updateField} errors={errors} fatherContactTouched={fatherContactTouched} motherContactTouched={motherContactTouched} />}
             {step === 3 && <Step4Academic  data={formData} onChange={updateField} errors={errors} />}
             {step === 4 && (
               <div className="space-y-6">
@@ -969,7 +1216,7 @@ export default function ScholarshipDetail() {
 
               {/* Step 4 (Documents): Submit Application */}
               {step === 4 && (
-                <button onClick={handleSubmit} disabled={submitting || !declared}
+                <button onClick={handleSubmit} disabled={submitting || !declared || validateRegNo(formData.registration_number) !== '' || validateMobile(formData.mobile) !== '' || validateEmail(formData.email) !== '' || validateContactNumber(formData.father_contact) !== '' || validateContactNumber(formData.mother_contact) !== ''}
                   className="btn-primary px-8 disabled:opacity-50">
                   {submitting
                     ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Submitting...</span>
