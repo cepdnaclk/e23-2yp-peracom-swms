@@ -9,18 +9,18 @@ import api from '../../services/api'
 const STEPS = ['Personal Info', 'Family Details', 'Financial Details', 'Academic Details', 'Documents', 'Payment Details']
 
 const SRI_LANKA_DISTRICTS = [
-  'Ampara','Anuradhapura','Badulla','Batticaloa','Colombo','Galle','Gampaha',
-  'Hambantota','Jaffna','Kalutara','Kandy','Kegalle','Kilinochchi','Kurunegala',
-  'Mannar','Matale','Matara','Monaragala','Mullaitivu','Nuwara Eliya',
-  'Polonnaruwa','Puttalam','Ratnapura','Trincomalee','Vavuniya'
+  'Ampara', 'Anuradhapura', 'Badulla', 'Batticaloa', 'Colombo', 'Galle', 'Gampaha',
+  'Hambantota', 'Jaffna', 'Kalutara', 'Kandy', 'Kegalle', 'Kilinochchi', 'Kurunegala',
+  'Mannar', 'Matale', 'Matara', 'Monaragala', 'Mullaitivu', 'Nuwara Eliya',
+  'Polonnaruwa', 'Puttalam', 'Ratnapura', 'Trincomalee', 'Vavuniya'
 ]
 
 const UNIVERSITY_LIST = [
-  'University of Peradeniya','University of Colombo','University of Moratuwa',
-  'University of Kelaniya','University of Sri Jayewardenepura','University of Ruhuna',
-  'University of Jaffna','University of Sabaragamuwa','Eastern University',
-  'South Eastern University','Rajarata University','Wayamba University',
-  'Uva Wellassa University','Weeramantri Institute','Other'
+  'University of Peradeniya', 'University of Colombo', 'University of Moratuwa',
+  'University of Kelaniya', 'University of Sri Jayewardenepura', 'University of Ruhuna',
+  'University of Jaffna', 'University of Sabaragamuwa', 'Eastern University',
+  'South Eastern University', 'Rajarata University', 'Wayamba University',
+  'Uva Wellassa University', 'Weeramantri Institute', 'Other'
 ]
 
 const REQUIRED_DOCS = [
@@ -30,8 +30,8 @@ const REQUIRED_DOCS = [
   { key: 'recommendation', label: 'Recommendation Letter' },
 ]
 
-const STUDY_YEARS = ['1st Year','2nd Year','3rd Year','4th Year','Final Year']
-const SEMESTERS  = ['Semester 1','Semester 2','Semester 3','Semester 4','Semester 5','Semester 6','Semester 7','Semester 8']
+const STUDY_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Final Year']
+const SEMESTERS = ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8']
 
 // ─── Helpers ─────────────────────────────────────────────────
 const calcAge = (dob) => {
@@ -76,21 +76,21 @@ const preventInvalidNumberInput = (e) => {
 }
 
 const emptySchoolSibling = () => ({ name: '', dob: '', school: '' })
-const emptyUniSibling    = () => ({ name: '', university: '', course: '', al_year: '', mahapola: '' })
+const emptyUniSibling = () => ({ name: '', university: '', course: '', al_year: '', mahapola: '' })
 
 // ─── Step Indicator ──────────────────────────────────────────
 function StepIndicator({ current }) {
   return (
     <div className="flex items-start justify-center gap-0 mb-8 overflow-x-auto pb-2">
       {STEPS.map((label, i) => {
-        const done   = i < current
+        const done = i < current
         const active = i === current
         return (
           <div key={i} className="flex items-center">
             <div className="flex flex-col items-center min-w-[64px]">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all
                 ${done ? 'bg-green-500 text-white' : active ? 'bg-purple-600 text-white' : 'bg-slate-200 text-slate-400'}`}>
-                {done ? <Check size={14}/> : i + 1}
+                {done ? <Check size={14} /> : i + 1}
               </div>
               <span className={`text-[10px] mt-1 text-center leading-tight max-w-[60px] hidden sm:block
                 ${active ? 'text-purple-600 font-semibold' : done ? 'text-green-600' : 'text-slate-400'}`}>
@@ -98,7 +98,7 @@ function StepIndicator({ current }) {
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div className={`w-8 sm:w-12 h-0.5 mb-4 mx-1 flex-shrink-0 transition-colors ${done ? 'bg-green-400' : 'bg-slate-200'}`}/>
+              <div className={`w-8 sm:w-12 h-0.5 mb-4 mx-1 flex-shrink-0 transition-colors ${done ? 'bg-green-400' : 'bg-slate-200'}`} />
             )}
           </div>
         )
@@ -115,7 +115,7 @@ function Field({ label, required, error, children }) {
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
       {children}
-      {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11}/>{error}</p>}
+      {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
     </div>
   )
 }
@@ -240,20 +240,20 @@ function Step1Personal({ data, onChange, errors, mobileTouched, emailTouched, re
 // ═══════════════════════════════════════════════════════════════
 function Step2Family({ data, onChange }) {
   const schoolSiblings = data.school_siblings || []
-  const uniSiblings    = data.uni_siblings    || []
+  const uniSiblings = data.uni_siblings || []
 
   const updateSchool = (i, field, value) => {
     const updated = schoolSiblings.map((s, idx) => idx === i ? { ...s, [field]: value } : s)
     onChange('school_siblings', updated)
   }
-  const addSchool    = () => onChange('school_siblings', [...schoolSiblings, emptySchoolSibling()])
+  const addSchool = () => onChange('school_siblings', [...schoolSiblings, emptySchoolSibling()])
   const removeSchool = (i) => onChange('school_siblings', schoolSiblings.filter((_, idx) => idx !== i))
 
-  const updateUni    = (i, field, value) => {
+  const updateUni = (i, field, value) => {
     const updated = uniSiblings.map((s, idx) => idx === i ? { ...s, [field]: value } : s)
     onChange('uni_siblings', updated)
   }
-  const addUni    = () => onChange('uni_siblings', [...uniSiblings, emptyUniSibling()])
+  const addUni = () => onChange('uni_siblings', [...uniSiblings, emptyUniSibling()])
   const removeUni = (i) => onChange('uni_siblings', uniSiblings.filter((_, idx) => idx !== i))
 
   return (
@@ -279,7 +279,7 @@ function Step2Family({ data, onChange }) {
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Sibling {i + 1}</p>
                   <button onClick={() => removeSchool(i)} className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50">
-                    <Trash2 size={14}/>
+                    <Trash2 size={14} />
                   </button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
@@ -314,7 +314,7 @@ function Step2Family({ data, onChange }) {
 
         <button onClick={addSchool}
           className="mt-3 flex items-center gap-2 text-sm text-purple-600 font-medium hover:text-purple-800 transition-colors">
-          <Plus size={15}/> Add School-going Sibling
+          <Plus size={15} /> Add School-going Sibling
         </button>
       </div>
 
@@ -336,17 +336,17 @@ function Step2Family({ data, onChange }) {
               <div className="flex items-center justify-between">
                 <p className="text-xs font-bold text-slate-600 uppercase tracking-wide">Sibling {i + 1}</p>
                 <button onClick={() => removeUni(i)} className="text-red-400 hover:text-red-600 p-1 rounded-lg hover:bg-red-50">
-                  <Trash2 size={14}/>
+                  <Trash2 size={14} />
                 </button>
               </div>
               <div className="grid sm:grid-cols-2 gap-3">
                 <Field label="Full Name">
                   <input type="text" placeholder="Name" value={s.name}
-                    onChange={e => updateUni(i,'name',e.target.value)} className="input-field" />
+                    onChange={e => updateUni(i, 'name', e.target.value)} className="input-field" />
                 </Field>
 
                 <Field label="University / Institute">
-                  <select value={s.university} onChange={e => updateUni(i,'university',e.target.value)} className="input-field">
+                  <select value={s.university} onChange={e => updateUni(i, 'university', e.target.value)} className="input-field">
                     <option value="">Select...</option>
                     {UNIVERSITY_LIST.map(u => <option key={u}>{u}</option>)}
                   </select>
@@ -354,22 +354,22 @@ function Step2Family({ data, onChange }) {
 
                 <Field label="Course of Study">
                   <input type="text" placeholder="e.g. BSc Engineering" value={s.course}
-                    onChange={e => updateUni(i,'course',e.target.value)} className="input-field" />
+                    onChange={e => updateUni(i, 'course', e.target.value)} className="input-field" />
                 </Field>
 
                 <Field label="A/L Year">
                   <input type="number" placeholder="e.g. 2022" value={s.al_year}
-                    onChange={e => updateUni(i,'al_year',e.target.value)} className="input-field" />
+                    onChange={e => updateUni(i, 'al_year', e.target.value)} className="input-field" />
                 </Field>
 
 
                 <Field label="Receiving Mahapola / Bursary?">
                   <div className="flex gap-4 mt-1">
-                    {['Yes','No'].map(opt => (
+                    {['Yes', 'No'].map(opt => (
                       <label key={opt} className="flex items-center gap-2 cursor-pointer">
                         <input type="radio" name={`mahapola_${i}`} value={opt}
                           checked={s.mahapola === opt}
-                          onChange={() => updateUni(i,'mahapola',opt)}
+                          onChange={() => updateUni(i, 'mahapola', opt)}
                           className="text-purple-600" />
                         <span className="text-sm text-slate-700">{opt}</span>
                       </label>
@@ -383,7 +383,7 @@ function Step2Family({ data, onChange }) {
 
         <button onClick={addUni}
           className="mt-3 flex items-center gap-2 text-sm text-purple-600 font-medium hover:text-purple-800 transition-colors">
-          <Plus size={15}/> Add University Sibling
+          <Plus size={15} /> Add University Sibling
         </button>
       </div>
     </div>
@@ -516,11 +516,11 @@ function Step3Financial({ data, onChange, errors, fatherContactTouched, motherCo
         <div className="grid sm:grid-cols-2 gap-4">
           {[
             { field: 'receiving_mahapola', label: 'Receiving Mahapola?' },
-            { field: 'receiving_bursary',  label: 'Receiving Bursary?' },
+            { field: 'receiving_bursary', label: 'Receiving Bursary?' },
           ].map(({ field, label }) => (
             <Field key={field} label={label}>
               <div className="flex gap-4 mt-1">
-                {['Yes','No'].map(opt => (
+                {['Yes', 'No'].map(opt => (
                   <label key={opt} className="flex items-center gap-2 cursor-pointer">
                     <input type="radio" name={field} value={opt}
                       checked={data[field] === opt}
@@ -614,10 +614,10 @@ function Step4Academic({ data, onChange, errors }) {
 // STEP 5 — Documents
 // ═══════════════════════════════════════════════════════════════
 function Step5Documents({ appId, onDocsChange, onNeedSave }) {
-  const [docs, setDocs]             = useState({})
+  const [docs, setDocs] = useState({})
   const [serverDocs, setServerDocs] = useState([])
-  const [uploading, setUploading]   = useState(null)
-  const [previews, setPreviews]     = useState({})
+  const [uploading, setUploading] = useState(null)
+  const [previews, setPreviews] = useState({})
   const fileRefs = useRef({})
 
   // Load already-uploaded docs whenever appId becomes available
@@ -625,16 +625,16 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
     if (!appId) return
     api.get(`/applications/${appId}/documents`)
       .then(r => setServerDocs(r.data || []))
-      .catch(() => {})
+      .catch(() => { })
   }, [appId])
 
   const serverUploadedNames = serverDocs.map(d => d.document_name)
 
   const handleFile = async (key, file) => {
     if (!file) return
-    const allowed = ['application/pdf','image/jpeg','image/png','image/jpg']
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg']
     if (!allowed.includes(file.type)) { toast.error('Only PDF, JPG, PNG allowed'); return }
-    if (file.size > 5 * 1024 * 1024)  { toast.error('Max 5MB per file'); return }
+    if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB per file'); return }
 
     // Must have an appId to upload — ask parent to save draft first
     if (!appId) {
@@ -701,7 +701,7 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
       {/* No appId warning */}
       {!appId && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700 flex items-start gap-2">
-          <AlertCircle size={15} className="flex-shrink-0 mt-0.5"/>
+          <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
           <span>Click <strong>Save Draft</strong> first, then you can upload your documents.</span>
         </div>
       )}
@@ -725,10 +725,10 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
       {/* Document rows */}
       <div className="space-y-3">
         {REQUIRED_DOCS.map(({ key, label }) => {
-          const localDoc  = docs[key]
+          const localDoc = docs[key]
           const serverDoc = serverDocs.find(d => d.document_name === label)
-          const isDone    = !!localDoc || !!serverDoc
-          const isUp      = uploading === key
+          const isDone = !!localDoc || !!serverDoc
+          const isUp = uploading === key
 
           return (
             <div key={key} className={`rounded-xl border-2 transition-all overflow-hidden
@@ -737,7 +737,7 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0
                   ${isDone ? 'bg-green-100' : 'bg-slate-100'}`}>
-                  {isDone ? <Check size={18} className="text-green-600"/> : <FileText size={18} className="text-slate-400"/>}
+                  {isDone ? <Check size={18} className="text-green-600" /> : <FileText size={18} className="text-slate-400" />}
                 </div>
 
                 {/* Info */}
@@ -768,13 +768,13 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
                   {localDoc?.file && localDoc.file.type.startsWith('image/') && previews[key] && (
                     <a href={previews[key]} target="_blank" rel="noreferrer"
                       className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 transition-colors">
-                      <Eye size={15}/>
+                      <Eye size={15} />
                     </a>
                   )}
                   {localDoc && !serverDoc && (
                     <button onClick={() => removeDoc(key)}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 transition-colors">
-                      <Trash2 size={15}/>
+                      <Trash2 size={15} />
                     </button>
                   )}
                   <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="hidden"
@@ -787,8 +787,8 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
                       ${isDone ? 'bg-slate-100 text-slate-600 hover:bg-slate-200' : 'bg-purple-600 text-white hover:bg-purple-700'}
                       disabled:opacity-50 disabled:cursor-not-allowed`}>
                     {isUp
-                      ? <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"/> Uploading</>
-                      : <><Upload size={12}/> {isDone ? 'Replace' : 'Upload'}</>}
+                      ? <><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> Uploading</>
+                      : <><Upload size={12} /> {isDone ? 'Replace' : 'Upload'}</>}
                   </button>
                 </div>
               </div>
@@ -822,18 +822,18 @@ export default function ScholarshipDetail() {
   const navigate = useNavigate()
 
   const [scholarship, setScholarship] = useState(null)
-  const [applying, setApplying]       = useState(false)
-  const [step, setStep]               = useState(0)
-  const [loading, setLoading]         = useState(true)
-  const [submitting, setSubmitting]   = useState(false)
-  const [savedAppId, setSavedAppId]   = useState(null)
-  const [declared, setDeclared]       = useState(false)
-  const [docs, setDocs]               = useState({})
+  const [applying, setApplying] = useState(false)
+  const [step, setStep] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [savedAppId, setSavedAppId] = useState(null)
+  const [declared, setDeclared] = useState(false)
+  const [docs, setDocs] = useState({})
   const [adminApproval, setAdminApproval] = useState(null)
   const [donorApproval, setDonorApproval] = useState(null)
 
   const [formData, setFormData] = useState({})
-  const [errors, setErrors]     = useState({})
+  const [errors, setErrors] = useState({})
 
   const [mobileTouched, setMobileTouched] = useState(false)
   const [emailTouched, setEmailTouched] = useState(false)
@@ -859,10 +859,10 @@ export default function ScholarshipDetail() {
           // Check donor approval via donor_students
           api.get(`/applications/${existing.id}/donor-decision`)
             .then(d => setDonorApproval(d.data?.donor_decision || null))
-            .catch(() => {})
+            .catch(() => { })
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [id])
 
   const updateField = (field, value) => {
@@ -896,23 +896,23 @@ export default function ScholarshipDetail() {
   const validate = () => {
     const e = {}
     if (step === 0) {
-      if (!formData.full_name)         e.full_name         = 'Full name is required'
-      if (!formData.postal_address)    e.postal_address    = 'Postal address is required'
-      if (!formData.district)          e.district          = 'District is required'
-      if (!formData.nic_number)        e.nic_number        = 'NIC number is required'
-      
+      if (!formData.full_name) e.full_name = 'Full name is required'
+      if (!formData.postal_address) e.postal_address = 'Postal address is required'
+      if (!formData.district) e.district = 'District is required'
+      if (!formData.nic_number) e.nic_number = 'NIC number is required'
+
       const regNoErr = validateRegNo(formData.registration_number)
       if (regNoErr) {
         e.registration_number = regNoErr
         setRegNoTouched(true)
       }
-      
+
       const mobileErr = validateMobile(formData.mobile)
       if (mobileErr) {
         e.mobile = mobileErr
         setMobileTouched(true)
       }
-      
+
       const emailErr = validateEmail(formData.email)
       if (emailErr) {
         e.email = emailErr
@@ -950,7 +950,7 @@ export default function ScholarshipDetail() {
     }
     if (step === 3) {
       if (!formData.current_year) e.current_year = 'Current year is required'
-      if (!formData.semester)     e.semester     = 'Semester is required'
+      if (!formData.semester) e.semester = 'Semester is required'
       if (formData.current_year !== '1st Year' && !formData.gpa)
         e.gpa = 'GPA is required for 2nd year and above'
       if (formData.gpa && (parseFloat(formData.gpa) < 0 || parseFloat(formData.gpa) > 4))
@@ -976,42 +976,42 @@ export default function ScholarshipDetail() {
   }
 
   const buildPayload = () => ({
-    scholarship_id:      id,
-    student_name:        formData.full_name,
+    scholarship_id: id,
+    student_name: formData.full_name,
     registration_number: formData.registration_number,
-    batch:               formData.batch,
-    email:               formData.email,
-    phone:               formData.mobile,
-    department:          formData.department,
-    current_year:        formData.current_year,
-    gpa:                 formData.gpa || null,
-    monthly_income:      formData.total_family_income || null,
-    num_dependents:      formData.num_dependents || null,
+    batch: formData.batch,
+    email: formData.email,
+    phone: formData.mobile,
+    department: formData.department,
+    current_year: formData.current_year,
+    gpa: formData.gpa || null,
+    monthly_income: formData.total_family_income || null,
+    num_dependents: formData.num_dependents || null,
     // Extended fields as JSON
     extra_data: JSON.stringify({
-      postal_address:     formData.postal_address,
-      district:           formData.district,
-      nic_number:         formData.nic_number,
-      school_siblings:    formData.school_siblings || [],
-      uni_siblings:       formData.uni_siblings    || [],
-      father_name:        formData.father_name,
-      father_occupation:  formData.father_occupation,
-      father_income:      formData.father_income,
-      father_employer:    formData.father_employer,
-      father_contact:     formData.father_contact,
-      mother_name:        formData.mother_name,
-      mother_occupation:  formData.mother_occupation,
-      mother_income:      formData.mother_income,
-      mother_employer:    formData.mother_employer,
-      mother_contact:     formData.mother_contact,
+      postal_address: formData.postal_address,
+      district: formData.district,
+      nic_number: formData.nic_number,
+      school_siblings: formData.school_siblings || [],
+      uni_siblings: formData.uni_siblings || [],
+      father_name: formData.father_name,
+      father_occupation: formData.father_occupation,
+      father_income: formData.father_income,
+      father_employer: formData.father_employer,
+      father_contact: formData.father_contact,
+      mother_name: formData.mother_name,
+      mother_occupation: formData.mother_occupation,
+      mother_income: formData.mother_income,
+      mother_employer: formData.mother_employer,
+      mother_contact: formData.mother_contact,
       num_family_members: formData.num_family_members,
       school_children_count: formData.school_children_count,
       uni_students_count: formData.uni_students_count,
       receiving_mahapola: formData.receiving_mahapola,
-      receiving_bursary:  formData.receiving_bursary,
+      receiving_bursary: formData.receiving_bursary,
       other_scholarships: formData.other_scholarships,
       other_scholarship_amount: formData.other_scholarship_amount,
-      semester:           formData.semester,
+      semester: formData.semester,
     })
   })
 
@@ -1091,7 +1091,7 @@ export default function ScholarshipDetail() {
     <div className="max-w-3xl mx-auto space-y-6">
       <Link to="/student/scholarships"
         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-purple-600 transition-colors">
-        <ArrowLeft size={15}/> Back to Scholarships
+        <ArrowLeft size={15} /> Back to Scholarships
       </Link>
 
       {/* ── Detail view ── */}
@@ -1118,7 +1118,7 @@ export default function ScholarshipDetail() {
               <p className="text-xs text-amber-600 font-medium">Deadline</p>
               <p className="font-bold text-amber-700 mt-1 text-sm">
                 {scholarship.application_deadline
-                  ? new Date(scholarship.application_deadline).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+                  ? new Date(scholarship.application_deadline).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                   : '—'}
               </p>
             </div>
@@ -1166,9 +1166,9 @@ export default function ScholarshipDetail() {
           {/* Step content */}
           <div className="min-h-[300px]">
             {step === 0 && <Step1Personal data={formData} onChange={updateField} errors={errors} mobileTouched={mobileTouched} emailTouched={emailTouched} />}
-            {step === 1 && <Step2Family   data={formData} onChange={updateField} />}
+            {step === 1 && <Step2Family data={formData} onChange={updateField} />}
             {step === 2 && <Step3Financial data={formData} onChange={updateField} errors={errors} fatherContactTouched={fatherContactTouched} motherContactTouched={motherContactTouched} />}
-            {step === 3 && <Step4Academic  data={formData} onChange={updateField} errors={errors} />}
+            {step === 3 && <Step4Academic data={formData} onChange={updateField} errors={errors} />}
             {step === 4 && (
               <div className="space-y-6">
                 <Step5Documents appId={savedAppId} onDocsChange={setDocs} onNeedSave={handleSaveDraft} />
@@ -1224,7 +1224,7 @@ export default function ScholarshipDetail() {
                 <button onClick={handleSubmit} disabled={submitting || !declared || validateRegNo(formData.registration_number) !== '' || validateMobile(formData.mobile) !== '' || validateEmail(formData.email) !== '' || validateContactNumber(formData.father_contact) !== '' || validateContactNumber(formData.mother_contact) !== ''}
                   className="btn-primary px-8 disabled:opacity-50">
                   {submitting
-                    ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>Submitting...</span>
+                    ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</span>
                     : '✓ Submit Application'}
                 </button>
               )}

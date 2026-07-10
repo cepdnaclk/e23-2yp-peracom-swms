@@ -22,16 +22,44 @@ export default function ScholarshipRequestReview() {
   }, [id])
 
   const handleApprove = async () => {
-    await api.post(`/scholarships/requests/${id}/approve`)
-    toast.success('Request approved & scholarship published!')
-    navigate('/scholarships')
+    try {
+      const res = await api.post(`/scholarships/requests/${id}/approve`)
+      const { emailResults } = res.data
+
+      const donorOk = emailResults?.donor?.success
+      const studentsOk = emailResults?.students?.sent > 0
+      const donorErr = emailResults?.donor?.error
+
+      if (donorOk) {
+        toast.success(`✅ Approved & published! Donor notified via email (${emailResults.students.sent} student${emailResults.students.sent !== 1 ? 's' : ''} notified).`)
+      } else if (donorErr) {
+        toast('⚠️ Approved & published, but donor email failed: ' + donorErr, { icon: '⚠️', style: { background: '#fef3c7', color: '#92400e' } })
+      } else {
+        toast.success('Request approved & scholarship published!')
+      }
+      navigate('/scholarships')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve request')
+    }
   }
 
   const handleReject = async () => {
     if (!rejectReason.trim()) return toast.error('Rejection reason required')
-    await api.post(`/scholarships/requests/${id}/reject`, { rejection_reason: rejectReason })
-    toast.success('Request rejected')
-    navigate('/scholarships')
+    try {
+      const res = await api.post(`/scholarships/requests/${id}/reject`, { rejection_reason: rejectReason })
+      const { emailResult } = res.data
+
+      if (emailResult?.success) {
+        toast.success('❌ Request rejected. Donor has been notified via email.')
+      } else if (emailResult?.error) {
+        toast('Request rejected, but donor email failed: ' + emailResult.error, { icon: '⚠️', style: { background: '#fef3c7', color: '#92400e' } })
+      } else {
+        toast.success('Request rejected')
+      }
+      navigate('/scholarships')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject request')
+    }
   }
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>
@@ -59,7 +87,9 @@ export default function ScholarshipRequestReview() {
           <Field label="Scholarship Title" value={req.scholarship_title} />
           <Field label="Donor Name" value={req.donor_name} />
           <Field label="Funding Amount" value={req.funding_amount ? `LKR ${Number(req.funding_amount).toLocaleString()}` : null} />
+          <Field label="Students to Support" value={req.num_students} />
           <Field label="Eligible Batch" value={req.eligible_batch} />
+          <Field label="Opening Date" value={req.opening_date ? format(new Date(req.opening_date), 'MMM d, yyyy') : null} />
           <Field label="Application Deadline" value={req.application_deadline ? format(new Date(req.application_deadline), 'MMM d, yyyy') : null} />
           <Field label="Required Documents" value={req.required_documents} />
         </div>
@@ -76,6 +106,12 @@ export default function ScholarshipRequestReview() {
             <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600">{req.eligibility_criteria}</div>
           </div>
         )}
+        {req.terms && (
+          <div>
+            <p className="text-xs font-medium text-slate-500 mb-2">Rules & Conditions</p>
+            <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-600">{req.terms}</div>
+          </div>
+        )}
         {req.notes && (
           <div>
             <p className="text-xs font-medium text-slate-500 mb-2">Notes</p>
@@ -88,27 +124,33 @@ export default function ScholarshipRequestReview() {
       {req.status === 'Pending' && (
         <div className="card p-6 space-y-4">
           <h2 className="font-semibold text-slate-700">Admin Decision</h2>
-          {!rejecting ? (
-            <div className="flex gap-3">
-              <button onClick={handleApprove} className="btn-primary flex-1">✓ Approve & Publish</button>
-              <button onClick={() => setRejecting(true)} className="btn-danger flex-1">✕ Reject Request</button>
-            </div>
-          ) : (
+          <div className="flex gap-3">
+            <button onClick={handleApprove} className="btn-primary flex-1">✓ Approve & Publish</button>
+            <button onClick={() => setRejecting(true)} className="btn-danger flex-1">✕ Reject Request</button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Confirmation Dialog Modal */}
+      {rejecting && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 max-w-md w-full p-6 space-y-4">
+            <h3 className="text-base font-bold text-slate-800">Reject Scholarship Request</h3>
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-slate-700">Rejection Reason *</label>
+              <label className="block text-xs font-semibold text-slate-600">Rejection Reason *</label>
               <textarea
                 value={rejectReason}
                 onChange={e => setRejectReason(e.target.value)}
-                rows={3}
+                rows={4}
                 placeholder="e.g. Eligibility criteria are incomplete. Please specify GPA requirements."
                 className="input-field resize-none"
               />
-              <div className="flex gap-3">
-                <button onClick={handleReject} className="btn-danger flex-1">Confirm Rejection</button>
-                <button onClick={() => setRejecting(false)} className="btn-ghost">Cancel</button>
-              </div>
             </div>
-          )}
+            <div className="flex gap-3 pt-2">
+              <button onClick={handleReject} className="btn-danger flex-1 py-2 text-sm font-semibold">Confirm Rejection</button>
+              <button onClick={() => { setRejecting(false); setRejectReason('') }} className="btn-ghost px-4 py-2 text-sm">Cancel</button>
+            </div>
+          </div>
         </div>
       )}
 

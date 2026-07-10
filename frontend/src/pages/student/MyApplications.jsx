@@ -24,36 +24,36 @@ const REQUIRED_DOCS = [
 // ── Progress bar
 function ProgressBar({ status }) {
   const config = {
-    Pending:                    { width: '25%',  color: 'bg-amber-400' },
-    'Under Review':             { width: '40%',  color: 'bg-blue-400' },
-    'Resubmission Requested':   { width: '50%',  color: 'bg-orange-400' },
-    Approved:                   { width: '65%',  color: 'bg-green-400' },
-    'Fully Approved':           { width: '75%',  color: 'bg-green-500' },
-    'Payment Details Submitted':{ width: '85%',  color: 'bg-purple-400' },
-    'Resubmission Required':    { width: '80%',  color: 'bg-red-400' },
-    'Payment Verified':         { width: '95%',  color: 'bg-green-500' },
-    Rejected:                   { width: '100%', color: 'bg-red-400' },
-    Completed:                  { width: '100%', color: 'bg-green-600' },
+    Pending: { width: '25%', color: 'bg-amber-400' },
+    'Under Review': { width: '40%', color: 'bg-blue-400' },
+    'Resubmission Requested': { width: '50%', color: 'bg-orange-400' },
+    Approved: { width: '65%', color: 'bg-green-400' },
+    'Fully Approved': { width: '75%', color: 'bg-green-500' },
+    'Payment Details Submitted': { width: '85%', color: 'bg-purple-400' },
+    'Resubmission Required': { width: '80%', color: 'bg-red-400' },
+    'Payment Verified': { width: '95%', color: 'bg-green-500' },
+    Rejected: { width: '100%', color: 'bg-red-400' },
+    Completed: { width: '100%', color: 'bg-green-600' },
   }
   const c = config[status] || { width: '10%', color: 'bg-slate-300' }
   return (
     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${c.color}`} style={{ width: c.width }}/>
+      <div className={`h-full rounded-full transition-all ${c.color}`} style={{ width: c.width }} />
     </div>
   )
 }
 
 // ══════════════════════════════════════════════════════════════
 export default function MyApplications() {
-  const [apps, setApps]           = useState([])
-  const [tab, setTab]             = useState('All')
-  const [loading, setLoading]     = useState(true)
+  const [apps, setApps] = useState([])
+  const [tab, setTab] = useState('All')
+  const [loading, setLoading] = useState(true)
   const [selectedApp, setSelectedApp] = useState(null)
 
   const loadApps = () => {
     api.get('/student/applications')
       .then(r => setApps(r.data))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }
   useEffect(() => { loadApps() }, [])
@@ -91,7 +91,7 @@ export default function MyApplications() {
         <div className="text-center py-12 text-slate-400">Loading applications...</div>
       ) : filtered.length === 0 ? (
         <div className="card p-12 text-center space-y-3">
-          <FileText size={40} className="text-slate-200 mx-auto"/>
+          <FileText size={40} className="text-slate-200 mx-auto" />
           <p className="text-slate-400">No applications found.</p>
           <Link to="/student/scholarships" className="btn-primary inline-block">
             Browse Scholarships
@@ -105,7 +105,7 @@ export default function MyApplications() {
                 <div className="flex items-start gap-4">
                   {/* Icon */}
                   <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-                    <FileText size={18} className="text-purple-600"/>
+                    <FileText size={18} className="text-purple-600" />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -123,14 +123,14 @@ export default function MyApplications() {
                             LKR {Number(app.funding_amount).toLocaleString()}
                           </span>
                         )}
-                        <StatusBadge status={app.status}/>
+                        <StatusBadge status={app.status} />
                       </div>
                     </div>
 
                     {/* Admin note */}
                     {app.admin_reason && (
                       <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-1.5">
-                        <AlertCircle size={12} className="mt-0.5 flex-shrink-0"/>
+                        <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
                         <span><span className="font-semibold">Admin note:</span> {app.admin_reason}</span>
                       </div>
                     )}
@@ -170,14 +170,14 @@ export default function MyApplications() {
                         <span>Application Progress</span>
                         <span>{app.status}</span>
                       </div>
-                      <ProgressBar status={app.status}/>
+                      <ProgressBar status={app.status} />
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-slate-100/50 flex items-center justify-between">
                       <button
                         onClick={() => setSelectedApp(app)}
                         className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
-                        <Eye size={14}/>
+                        <Eye size={14} />
                         View Application
                       </button>
                     </div>
@@ -250,7 +250,7 @@ function ApplicationDetailModal({ app, onClose }) {
         {/* Scrollable Content */}
         {loading ? (
           <div className="flex-1 flex flex-col items-center justify-center py-12 text-slate-400 gap-2">
-            <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin"/>
+            <div className="w-8 h-8 border-3 border-purple-600 border-t-transparent rounded-full animate-spin" />
             <span className="text-sm font-medium">Loading application details...</span>
           </div>
         ) : (
@@ -260,7 +260,7 @@ function ApplicationDetailModal({ app, onClose }) {
               <StatusCard label="Application Status" value={app.status} type="status" />
               <StatusCard label="Admin Approval" value={
                 app.status === 'Rejected' ? 'Rejected' :
-                ['Approved','Fully Approved','Payment Details Submitted','Payment Verified','Completed'].includes(app.status) ? 'Approved' : 'Pending'
+                  ['Approved', 'Fully Approved', 'Payment Details Submitted', 'Payment Verified', 'Completed'].includes(app.status) ? 'Approved' : 'Pending'
               } />
               <StatusCard label="Donor Approval" value={donorDecision?.donor_decision || 'Pending'} />
               <StatusCard label="Payment Verification" value={payment?.payment_details_status || 'Pending'} />

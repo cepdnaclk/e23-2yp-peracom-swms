@@ -55,22 +55,72 @@ router.get('/scholarship-requests', authenticate, requireDonor, async (req, res)
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
+// PUT /api/donor/scholarship-requests/:id
+router.put('/scholarship-requests/:id', authenticate, requireDonor, async (req, res) => {
+  try {
+    const {
+      scholarship_title, funding_amount, eligible_batch, application_deadline,
+      description, eligibility_criteria, required_documents, notes,
+      category, num_students, opening_date, terms, status_override
+    } = req.body
+
+    let finalFunding = parseFloat(funding_amount)
+    if (isNaN(finalFunding)) {
+      finalFunding = 0
+    }
+
+    const finalStatus = status_override === 'Draft' ? 'Draft' : 'Pending'
+    if (finalStatus !== 'Draft' && finalFunding <= 0) {
+      return res.status(400).json({ message: 'Funding amount must be greater than 0' })
+    }
+
+    // Verify ownership and that it is in Draft status
+    const check = await query('SELECT id, status FROM donor_scholarship_requests WHERE id = $1 AND donor_id = $2', [req.params.id, req.user.id])
+    if (!check.rows.length) return res.status(404).json({ message: 'Request not found' })
+    if (check.rows[0].status !== 'Draft') return res.status(400).json({ message: 'Only drafts can be edited' })
+
+    const result = await query(
+      `UPDATE donor_scholarship_requests
+       SET scholarship_title = $1, funding_amount = $2, eligible_batch = $3, application_deadline = $4,
+           description = $5, eligibility_criteria = $6, required_documents = $7, notes = $8, status = $9,
+           category = $10, num_students = $11, opening_date = $12, terms = $13, updated_at = NOW()
+       WHERE id = $14 RETURNING *`,
+      [scholarship_title, finalFunding, eligible_batch, application_deadline || null,
+        description, eligibility_criteria, required_documents, notes, finalStatus,
+        category || null, num_students ? parseInt(num_students) : null, opening_date || null, terms, req.params.id])
+    res.json(result.rows[0])
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
 // POST /api/donor/scholarship-requests
 router.post('/scholarship-requests', authenticate, requireDonor, async (req, res) => {
   try {
     const {
       scholarship_title, funding_amount, eligible_batch, application_deadline,
-      description, eligibility_criteria, required_documents, notes
+      description, eligibility_criteria, required_documents, notes,
+      category, num_students, opening_date, terms, status_override
     } = req.body
-    if (!scholarship_title || !funding_amount) return res.status(400).json({ message: 'Title and funding amount required' })
+    if (!scholarship_title) return res.status(400).json({ message: 'Scholarship title is required' })
+
+    let finalFunding = parseFloat(funding_amount)
+    if (isNaN(finalFunding)) {
+      finalFunding = 0
+    }
+
+    const finalStatus = status_override === 'Draft' ? 'Draft' : 'Pending'
+    if (finalStatus !== 'Draft' && finalFunding <= 0) {
+      return res.status(400).json({ message: 'Funding amount must be greater than 0' })
+    }
 
     const result = await query(
       `INSERT INTO donor_scholarship_requests
        (donor_id, scholarship_title, funding_amount, eligible_batch, application_deadline,
-        description, eligibility_criteria, required_documents, notes, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'Pending') RETURNING *`,
-      [req.user.id, scholarship_title, funding_amount, eligible_batch, application_deadline || null,
-       description, eligibility_criteria, required_documents, notes])
+        description, eligibility_criteria, required_documents, notes, status,
+        category, num_students, opening_date, terms)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
+      [req.user.id, scholarship_title, finalFunding, eligible_batch, application_deadline || null,
+        description, eligibility_criteria, required_documents, notes, finalStatus,
+      category || null, num_students ? parseInt(num_students) : null, opening_date || null, terms])
     res.status(201).json(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
 })

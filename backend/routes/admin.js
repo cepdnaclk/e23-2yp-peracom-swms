@@ -1,6 +1,7 @@
 import express from 'express'
 import { query } from '../config/db.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
+import { getEmailProviderStatus } from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -377,6 +378,22 @@ router.post('/users/:id/suspend', authenticate, requireAdmin, async (req, res) =
   try {
     await query(`UPDATE users SET status = 'suspended', updated_at = NOW() WHERE id = $1`, [req.params.id])
     res.json({ message: 'User suspended' })
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// GET /api/admin/email-health
+router.get('/email-health', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const providerStatus = getEmailProviderStatus()
+    // Fetch last 10 email log entries
+    const logsResult = await query(
+      `SELECT recipient_email, email_type, delivery_status, subject, error_message, sent_at
+       FROM email_logs ORDER BY sent_at DESC LIMIT 10`
+    ).catch(() => ({ rows: [] })) // graceful if table is missing new columns
+    res.json({
+      ...providerStatus,
+      recentLogs: logsResult.rows,
+    })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
