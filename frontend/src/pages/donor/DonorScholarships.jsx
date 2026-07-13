@@ -184,7 +184,7 @@ description: r.description || '',
                   <input type="text" value={form.scholarship_title} onChange={e => setForm({ ...form, scholarship_title: e.target.value })} className="input-field" placeholder="e.g. Peradeniya Engineering Excellence Scholarship" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Total Scholarship Amount (LKR) *</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">Scholarship Amount per Student(LKR) *</label>
                   <input type="number" min="1" value={form.funding_amount} onChange={e => setForm({ ...form, funding_amount: e.target.value })} className="input-field" placeholder="e.g. 100000" />
                 </div>
                 <div>
@@ -399,7 +399,7 @@ description: r.description || '',
                   </div>
                   {s.description && <p className="text-xs text-slate-500 line-clamp-2">{s.description}</p>}
                   <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
-                    <span>💰 LKR {Number(s.funding_amount || 0).toLocaleString()}</span>
+                    <span>💰 LKR {Number(s.funding_amount || 0).toLocaleString()} per student</span>
                     {s.num_students && <span>👥 {s.num_students} students</span>}
                     <span>🎓 {s.eligible_batch || 'All'}</span>
                     {s.application_deadline && <span>📅 {format(new Date(s.application_deadline), 'MMM d, yyyy')}</span>}
@@ -525,7 +525,7 @@ description: r.description || '',
                   <span className="font-bold text-slate-800 text-sm">{selectedRequest.scholarship_title}</span>
                 </div>
                 <div>
-                  <span className="text-xs font-semibold text-slate-400 block mb-0.5">Total Scholarship Amount (LKR)</span>
+                  <span className="text-xs font-semibold text-slate-400 block mb-0.5"> Amount per Student  (LKR)</span>
                   <span className="font-bold text-slate-800 text-sm">LKR {Number(selectedRequest.funding_amount || 0).toLocaleString()}</span>
                 </div>
                 <div>
