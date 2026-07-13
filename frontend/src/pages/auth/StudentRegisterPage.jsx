@@ -45,7 +45,38 @@ export default function StudentRegisterPage() {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Field name="name" label="Full Name *" rules={{ required: 'Full name is required' }} />
             <Field name="email" label="Email Address *" type="email" rules={{ required: 'Email is required' }} />
-            <Field name="phone" label="Phone Number" />
+           <div>
+  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+    Phone Number *
+  </label>
+
+  <input
+    type="tel"
+    inputMode="numeric"
+    maxLength={10}
+    placeholder="e.g. 0771234567"
+    {...register('phone', {
+      required: 'Phone number is required',
+
+      pattern: {
+        value: /^07\d{8}$/,
+        message: 'Enter a valid 10-digit phone number starting with 07'
+      }
+    })}
+    onInput={(event) => {
+      event.target.value = event.target.value
+        .replace(/\D/g, '')
+        .slice(0, 10)
+    }}
+    className="input-field"
+  />
+
+  {errors.phone && (
+    <p className="text-xs text-red-500 mt-1">
+      {errors.phone.message}
+    </p>
+  )}
+</div>
             <Field name="department" label="Department" placeholder="e.g. Computer Engineering" />
             <Field name="batch" label="Batch" placeholder="e.g. 20/21" />
             <Field name="registration_number" label="Registration Number" placeholder="e.g. E/18/001" />

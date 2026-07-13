@@ -35,8 +35,29 @@ router.post('/login', async (req, res) => {
 // POST /api/auth/register/student
 router.post('/register/student', async (req, res) => {
   try {
-    const { name, email, password, phone, department, batch, registration_number } = req.body
-    if (!name || !email || !password) return res.status(400).json({ message: 'Name, email, and password required' })
+    const {
+  name,
+  email,
+  password,
+  phone,
+  department,
+  batch,
+  registration_number
+} = req.body
+
+if (!name || !email || !password || !phone) {
+  return res.status(400).json({
+    message: 'Name, email, password, and phone number are required'
+  })
+}
+
+const sriLankanPhonePattern = /^07\d{8}$/
+
+if (!sriLankanPhonePattern.test(phone)) {
+  return res.status(400).json({
+    message: 'Phone number must contain 10 digits and start with 07'
+  })
+}
 
     const exists = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()])
     if (exists.rows.length) return res.status(409).json({ message: 'Email already registered' })
@@ -67,7 +88,15 @@ router.post('/register/donor', async (req, res) => {
     const result = await query(
       `INSERT INTO users (name, email, password_hash, role, status, phone, organization, address)
        VALUES ($1, $2, $3, 'donor', 'pending_approval', $4, $5, $6) RETURNING id, name, email, role, status`,
-      [name.trim(), email.toLowerCase().trim(), hash, phone || null, organization || null, address || null]
+      [
+  name.trim(),
+  email.toLowerCase().trim(),
+  hash,
+  phone.trim(),
+  department || null,
+  batch || null,
+  registration_number || null
+]
     )
     res.status(201).json({ message: 'Registered successfully. Await admin approval.', user: result.rows[0] })
   } catch (err) {
