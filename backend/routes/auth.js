@@ -7,7 +7,25 @@ const router = express.Router()
 
 const signToken = (user) =>
   jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' })
+// GET /api/auth/batches
+// Public endpoint used by the student registration page
+router.get('/batches', async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT batch_name
+       FROM batches
+       WHERE status = 'Active'
+       ORDER BY batch_name`
+    )
 
+    res.json(result.rows)
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({
+      message: 'Unable to load batches'
+    })
+  }
+})
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -40,17 +58,17 @@ router.post('/register/student', async (req, res) => {
   email,
   password,
   phone,
-  department,
+
   batch,
   registration_number
 } = req.body
-
-if (!name || !email || !password || !phone) {
+// check requiered fields
+if (!name || !email || !password || !phone|| !batch) {
   return res.status(400).json({
-    message: 'Name, email, password, and phone number are required'
+    message: 'Name, email, password, phone number, and batch are required'
   })
 }
-
+ // Validate Sri Lankan mobile number
 const sriLankanPhonePattern = /^07\d{8}$/
 
 if (!sriLankanPhonePattern.test(phone)) {
@@ -59,9 +77,24 @@ if (!sriLankanPhonePattern.test(phone)) {
   })
 }
 
+// Check whether the selected batch exists and is active
+const batchResult = await query(
+  `SELECT id
+   FROM batches
+   WHERE batch_name = $1
+     AND status = 'Active'`,
+  [String(batch)]
+)
+
+if (batchResult.rows.length === 0) {
+  return res.status(400).json({
+    message: 'Please select a valid active batch'
+  })
+}
+const department = 'Computer Engineering'
     const exists = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase().trim()])
     if (exists.rows.length) return res.status(409).json({ message: 'Email already registered' })
-
+    // Hash the student's password
     const hash = await bcrypt.hash(password, 12)
     const result = await query(
       `INSERT INTO users (name, email, password_hash, role, status, phone, department, batch, registration_number)

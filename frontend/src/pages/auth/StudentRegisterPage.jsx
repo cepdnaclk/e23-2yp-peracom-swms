@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
@@ -10,6 +10,23 @@ export default function StudentRegisterPage() {
   const navigate = useNavigate()
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm()
   const [showPass, setShowPass] = useState(false)
+  const [batches, setBatches] = useState([])
+const [batchesLoading, setBatchesLoading] = useState(true)
+
+useEffect(() => {
+  const loadBatches = async () => {
+    try {
+      const response = await api.get('/auth/batches')
+      setBatches(response.data)
+    } catch (err) {
+      toast.error('Unable to load available batches')
+    } finally {
+      setBatchesLoading(false)
+    }
+  }
+
+  loadBatches()
+}, [])
 
   const onSubmit = async (data) => {
     try {
@@ -77,8 +94,40 @@ export default function StudentRegisterPage() {
     </p>
   )}
 </div>
-            <Field name="department" label="Department" placeholder="e.g. Computer Engineering" />
-            <Field name="batch" label="Batch" placeholder="e.g. 20/21" />
+            
+            <div>
+  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+    Batch *
+  </label>
+
+  <select
+    {...register('batch', {
+      required: 'Please select your batch'
+    })}
+    defaultValue=""
+    disabled={batchesLoading}
+    className="input-field"
+  >
+    <option value="" disabled>
+      {batchesLoading ? 'Loading batches...' : 'Select your batch'}
+    </option>
+
+    {batches.map((batch) => (
+      <option
+        key={batch.batch_name}
+        value={batch.batch_name}
+      >
+        Batch {batch.batch_name}
+      </option>
+    ))}
+  </select>
+
+  {errors.batch && (
+    <p className="text-xs text-red-500 mt-1">
+      {errors.batch.message}
+    </p>
+  )}
+</div>
             <Field name="registration_number" label="Registration Number" placeholder="e.g. E/18/001" />
 
             <div>
