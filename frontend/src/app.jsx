@@ -7,7 +7,7 @@ import LoginPage from './pages/auth/LoginPage'
 import StudentRegisterPage from './pages/auth/StudentRegisterPage'
 import DonorRegisterPage from './pages/auth/DonorRegisterPage'
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage'
-
+import VerifyEmailPage from './pages/auth/VerifyEmailPage'
 // Public
 import HomePage from './pages/HomePage'
 
@@ -70,7 +70,7 @@ function AppRoutes() {
       <Route path="/register/student" element={<StudentRegisterPage />} />
       <Route path="/register/donor" element={<DonorRegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
       {/* Admin */}
       <Route path="/dashboard" element={<ProtectedRoute role="admin"><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />

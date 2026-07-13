@@ -2,216 +2,400 @@
  * emailService.js
  *
  * Provider priority:
- *   1. Resend  (RESEND_API_KEY is set)          → real delivery
- *   2. SMTP    (SMTP_HOST + SMTP_USER + SMTP_PASS) → real delivery via nodemailer
- *   3. Console logger                            → dev-only mock, no real delivery
- *
- * Returns: { success: boolean, provider: string, messageId?: string, error?: string }
+ * 1. Resend when RESEND_API_KEY is configured
+ * 2. SMTP/Nodemailer when SMTP settings are configured
+ * 3. Console mock when no provider is configured
  */
 
 import nodemailer from 'nodemailer'
 import { query } from '../config/db.js'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ============================================================
+// HELPERS
+// ============================================================
 
 function getFromAddress() {
-  const name    = process.env.EMAIL_FROM_NAME    || 'Pera Com SWMS'
-  const address = process.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev'
+  const name =
+    process.env.EMAIL_FROM_NAME || 'PeraCom SWMS'
+
+  const address =
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.SMTP_USER ||
+    'no-reply@pdn.ac.lk'
+
   return `"${name}" <${address}>`
 }
 
-// ── Provider: Resend ─────────────────────────────────────────────────────────
+// ============================================================
+// RESEND PROVIDER
+// ============================================================
 
-async function sendViaResend({ to, subject, text }) {
+async function sendViaResend({
+  to,
+  subject,
+  text,
+  html
+}) {
   const apiKey = process.env.RESEND_API_KEY
-  if (!apiKey) throw new Error('RESEND_API_KEY is not set')
 
-  const fromAddress = process.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev'
-  const fromName    = process.env.EMAIL_FROM_NAME    || 'Pera Com SWMS'
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY is not configured')
+  }
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({
-      from:    `${fromName} <${fromAddress}>`,
-      to:      [to],
-      subject: subject,
-      text:    text,
-    }),
-  })
+  const fromAddress =
+    process.env.EMAIL_FROM_ADDRESS ||
+    'onboarding@resend.dev'
+
+  const fromName =
+    process.env.EMAIL_FROM_NAME ||
+    'PeraCom SWMS'
+
+  const response = await fetch(
+    'https://api.resend.com/emails',
+    {
+      method: 'POST',
+
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+
+      body: JSON.stringify({
+        from: `${fromName} <${fromAddress}>`,
+        to: [to],
+        subject,
+        text,
+        html
+      })
+    }
+  )
 
   const data = await response.json()
 
   if (!response.ok) {
-    // Resend returns { name, message, statusCode } on error
-    const msg = data?.message || data?.name || `HTTP ${response.status}`
-    throw new Error(`Resend API error: ${msg}`)
+    const message =
+      data?.message ||
+      data?.name ||
+      `HTTP ${response.status}`
+
+    throw new Error(
+      `Resend API error: ${message}`
+    )
   }
 
   return data?.id || 'sent'
 }
 
-// ── Provider: SMTP (Nodemailer) ───────────────────────────────────────────────
+// ============================================================
+// SMTP / NODEMAILER PROVIDER
+// ============================================================
 
-async function sendViaSMTP({ to, subject, text }) {
-  const transporter = nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  })
+async function sendViaSMTP({
+  to,
+  subject,
+  text,
+  html
+}) {
+  const port = Number(
+    process.env.SMTP_PORT || 587
+  )
+
+  const transporter =
+    nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port,
+
+      // Port 465 normally uses secure=true.
+      // Port 587 normally uses secure=false with STARTTLS.
+      secure:
+        process.env.SMTP_SECURE === 'true',
+
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    })
 
   const info = await transporter.sendMail({
-    from:    getFromAddress(),
-    to:      to,
-    subject: subject,
-    text:    text,
+    from: getFromAddress(),
+    to,
+    subject,
+    text,
+    html
   })
 
   return info.messageId
 }
 
-// ── Main Export ───────────────────────────────────────────────────────────────
+// ============================================================
+// MAIN EMAIL FUNCTION
+// ============================================================
 
 /**
- * Send an email and log the result to email_logs.
+ * Send an email and log the result.
  *
- * @param {object} opts
- * @param {string}  opts.recipientEmail
- * @param {string}  opts.subject
- * @param {string}  opts.body              – plain-text body
- * @param {string}  opts.emailType         – e.g. 'Approval_Donor'
- * @param {string} [opts.scholarshipRequestId]
- *
- * @returns {{ success: boolean, provider: string, messageId?: string, error?: string }}
+ * @param {object} options
+ * @param {string} options.recipientEmail
+ * @param {string} options.subject
+ * @param {string} options.body
+ * @param {string} [options.html]
+ * @param {string} options.emailType
+ * @param {string} [options.scholarshipRequestId]
  */
-export async function sendEmail({ recipientEmail, subject, body, emailType, scholarshipRequestId }) {
-  // Guard: skip if no recipient
-  if (!recipientEmail || !recipientEmail.trim()) {
-    const err = 'Recipient email is empty or null — email skipped'
-    console.warn(`⚠️  ${err}`)
-    await logEmail({ recipientEmail: recipientEmail || '(empty)', subject, emailType, scholarshipRequestId, status: 'Failed', errorMessage: err })
-    return { success: false, provider: 'none', error: err }
+export async function sendEmail({
+  recipientEmail,
+  subject,
+  body,
+  html,
+  emailType,
+  scholarshipRequestId
+}) {
+  const normalizedRecipient =
+    recipientEmail
+      ? String(recipientEmail).trim()
+      : ''
+
+  if (!normalizedRecipient) {
+    const errorMessage =
+      'Recipient email is empty — email skipped'
+
+    console.warn(`⚠️ ${errorMessage}`)
+
+    await logEmail({
+      recipientEmail: '(empty)',
+      subject,
+      emailType,
+      scholarshipRequestId,
+      status: 'Failed',
+      errorMessage
+    })
+
+    return {
+      success: false,
+      provider: 'none',
+      error: errorMessage
+    }
   }
 
-  const hasResend = !!process.env.RESEND_API_KEY
-  const hasSMTP   = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  const hasResend =
+    Boolean(process.env.RESEND_API_KEY)
 
-  let provider   = 'console'
-  let messageId  = null
-  let errorMsg   = null
-  let status     = 'Failed'
+  const hasSMTP =
+    Boolean(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    )
+
+  let provider = 'none'
+  let messageId = null
+  let errorMessage = null
+  let deliveryStatus = 'Failed'
 
   try {
     if (hasResend) {
-      provider  = 'Resend'
-      messageId = await sendViaResend({ to: recipientEmail, subject, text: body })
-      status    = 'Sent'
-      console.log(`✅ [Resend] Email sent → ${recipientEmail} | Subject: "${subject}" | ID: ${messageId}`)
+      provider = 'Resend'
 
+      messageId = await sendViaResend({
+        to: normalizedRecipient,
+        subject,
+        text: body,
+        html
+      })
+
+      deliveryStatus = 'Sent'
+
+      console.log(
+        `✅ [Resend] Email sent → ${normalizedRecipient} | ` +
+        `Subject: "${subject}" | ID: ${messageId}`
+      )
     } else if (hasSMTP) {
-      provider  = 'SMTP'
-      messageId = await sendViaSMTP({ to: recipientEmail, subject, text: body })
-      status    = 'Sent'
-      console.log(`✅ [SMTP] Email sent → ${recipientEmail} | Subject: "${subject}" | ID: ${messageId}`)
+      provider = 'SMTP'
 
+      messageId = await sendViaSMTP({
+        to: normalizedRecipient,
+        subject,
+        text: body,
+        html
+      })
+
+      deliveryStatus = 'Sent'
+
+      console.log(
+        `✅ [SMTP] Email sent → ${normalizedRecipient} | ` +
+        `Subject: "${subject}" | ID: ${messageId}`
+      )
     } else {
-      // Dev console fallback — no real delivery
       provider = 'console'
-      status   = 'Mock'
+      deliveryStatus = 'Mock'
+
       console.log(`
 ============================================================
-📧  MOCK EMAIL (no provider configured)
+📧 MOCK EMAIL — NO REAL PROVIDER CONFIGURED
 ============================================================
-To:      ${recipientEmail}
+To:      ${normalizedRecipient}
 Subject: ${subject}
 Type:    ${emailType}
 ------------------------------------------------------------
 ${body}
 ============================================================
-`)
+      `)
     }
   } catch (err) {
-    errorMsg = err.message
-    status   = 'Failed'
-    console.error(`❌ [${provider}] Email FAILED → ${recipientEmail} | Subject: "${subject}"`)
-    console.error(`   Error: ${errorMsg}`)
+    errorMessage =
+      err instanceof Error
+        ? err.message
+        : String(err)
+
+    deliveryStatus = 'Failed'
+
+    console.error(
+      `❌ [${provider}] Email failed → ` +
+      `${normalizedRecipient} | Subject: "${subject}"`
+    )
+
+    console.error(`Error: ${errorMessage}`)
   }
 
-  // Log every attempt to the database
-  await logEmail({ recipientEmail, subject, emailType, scholarshipRequestId, status, errorMessage: errorMsg })
+  await logEmail({
+    recipientEmail: normalizedRecipient,
+    subject,
+    emailType,
+    scholarshipRequestId,
+    status: deliveryStatus,
+    errorMessage
+  })
 
-  if (status === 'Failed') {
-    return { success: false, provider, error: errorMsg }
+  if (deliveryStatus === 'Failed') {
+    return {
+      success: false,
+      provider,
+      error: errorMessage
+    }
   }
-  return { success: true, provider, messageId }
+
+  // Mock mode does not deliver a real email.
+  if (deliveryStatus === 'Mock') {
+    return {
+      success: false,
+      provider,
+      error:
+        'No real email provider is configured'
+    }
+  }
+
+  return {
+    success: true,
+    provider,
+    messageId
+  }
 }
 
-// ── DB Logger ─────────────────────────────────────────────────────────────────
+// ============================================================
+// EMAIL DATABASE LOG
+// ============================================================
 
-async function logEmail({ recipientEmail, subject, emailType, scholarshipRequestId, status, errorMessage }) {
+async function logEmail({
+  recipientEmail,
+  subject,
+  emailType,
+  scholarshipRequestId,
+  status,
+  errorMessage
+}) {
   try {
     await query(
-      `INSERT INTO email_logs
-         (recipient_email, scholarship_request_id, email_type, delivery_status, subject, error_message, sent_at)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+      `INSERT INTO email_logs (
+         recipient_email,
+         scholarship_request_id,
+         email_type,
+         delivery_status,
+         subject,
+         error_message,
+         sent_at
+       )
+       VALUES (
+         $1,
+         $2,
+         $3,
+         $4,
+         $5,
+         $6,
+         NOW()
+       )`,
       [
         recipientEmail,
         scholarshipRequestId || null,
-        emailType,
+        emailType || 'General',
         status,
         subject || null,
-        errorMessage || null,
+        errorMessage || null
       ]
     )
-  } catch (dbErr) {
-    // If email_logs is missing new columns, log a helpful message
-    console.warn('⚠️  Could not write to email_logs:', dbErr.message)
-    console.warn('   Run the SQL migration to add subject/error_message/sent_at columns.')
+  } catch (dbError) {
+    console.warn(
+      '⚠️ Could not write to email_logs:',
+      dbError.message
+    )
   }
 }
 
-// ── Health Check ──────────────────────────────────────────────────────────────
+// ============================================================
+// EMAIL PROVIDER HEALTH
+// ============================================================
 
-/**
- * Returns the active email provider configuration status.
- * Used by GET /api/admin/email-health
- */
 export function getEmailProviderStatus() {
-  const hasResend = !!process.env.RESEND_API_KEY
-  const hasSMTP   = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  const hasResend =
+    Boolean(process.env.RESEND_API_KEY)
+
+  const hasSMTP =
+    Boolean(
+      process.env.SMTP_HOST &&
+      process.env.SMTP_USER &&
+      process.env.SMTP_PASS
+    )
 
   if (hasResend) {
     return {
-      provider:    'Resend',
-      configured:  true,
-      fromAddress: process.env.EMAIL_FROM_ADDRESS || 'onboarding@resend.dev',
-      fromName:    process.env.EMAIL_FROM_NAME    || 'Pera Com SWMS',
-      warning:     null,
+      provider: 'Resend',
+      configured: true,
+
+      fromAddress:
+        process.env.EMAIL_FROM_ADDRESS ||
+        'onboarding@resend.dev',
+
+      fromName:
+        process.env.EMAIL_FROM_NAME ||
+        'PeraCom SWMS',
+
+      warning: null
     }
   }
 
   if (hasSMTP) {
     return {
-      provider:    'SMTP',
-      configured:  true,
-      fromAddress: process.env.EMAIL_FROM_ADDRESS || 'no-reply@pdn.ac.lk',
-      fromName:    process.env.EMAIL_FROM_NAME    || 'Pera Com SWMS',
-      warning:     null,
+      provider: 'SMTP',
+      configured: true,
+
+      fromAddress:
+        process.env.EMAIL_FROM_ADDRESS ||
+        process.env.SMTP_USER,
+
+      fromName:
+        process.env.EMAIL_FROM_NAME ||
+        'PeraCom SWMS',
+
+      warning: null
     }
   }
 
   return {
-    provider:    'none',
-    configured:  false,
+    provider: 'none',
+    configured: false,
     fromAddress: null,
-    fromName:    null,
-    warning:     'No email provider configured. Set RESEND_API_KEY in .env to enable real email delivery.',
+    fromName: null,
+
+    warning:
+      'No email provider is configured. Add SMTP settings or RESEND_API_KEY to backend/.env.'
   }
 }

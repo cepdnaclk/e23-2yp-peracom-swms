@@ -14,6 +14,15 @@ CREATE TABLE IF NOT EXISTS users (
   name                VARCHAR(255) NOT NULL,
   email               VARCHAR(255) UNIQUE NOT NULL,
   password_hash       TEXT NOT NULL,
+  email               VARCHAR(255) UNIQUE NOT NULL,
+password_hash       TEXT NOT NULL,
+
+email_verified               BOOLEAN NOT NULL DEFAULT FALSE,
+email_verification_token     TEXT,
+email_verification_expires   TIMESTAMPTZ,
+email_verified_at            TIMESTAMPTZ,
+
+role                VARCHAR(20) NOT NULL
   role                VARCHAR(20) NOT NULL CHECK (role IN ('admin','student','donor')),
   status              VARCHAR(30) NOT NULL DEFAULT 'pending_approval'
                       CHECK (status IN ('pending_approval','approved','rejected','suspended')),

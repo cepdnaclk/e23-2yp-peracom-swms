@@ -337,8 +337,18 @@ router.put('/issues/:id', authenticate, requireAdmin, async (req, res) => {
 router.get('/pending-users', authenticate, requireAdmin, async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, name, email, role, status, created_at FROM users
-       WHERE role IN ('student','donor') ORDER BY created_at DESC`)
+      `SELECT
+    id,
+    name,
+    email,
+    role,
+    status,
+    email_verified,
+    email_verified_at,
+    created_at
+ FROM users
+ WHERE role IN ('student', 'donor')
+ ORDER BY created_at DESC`) 
     res.json(result.rows)
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
@@ -358,27 +368,77 @@ router.get('/user-counts', authenticate, requireAdmin, async (req, res) => {
 })
 
 // POST /api/admin/users/:id/approve
-router.post('/users/:id/approve', authenticate, requireAdmin, async (req, res) => {
-  try {
-    await query(`UPDATE users SET status = 'approved', updated_at = NOW() WHERE id = $1`, [req.params.id])
-    res.json({ message: 'User approved' })
-  } catch (err) { res.status(500).json({ message: err.message }) }
-})
+// POST /api/admin/users/:id/approve
+router.post(
+  '/users/:id/approve',
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await query(
+        `UPDATE users
+         SET status = 'approved',
+             updated_at = NOW()
+         WHERE id = $1
+           AND email_verified = TRUE
+           AND status = 'pending_approval'
+         RETURNING id, name, email, role, status, email_verified`,
+        [req.params.id]
+      )
+
+      if (result.rows.length === 0) {
+        return res.status(400).json({
+          message:
+            'This user cannot be approved. The email may not be verified or the account may not be pending approval.'
+        })
+      }
+
+      res.json({
+        message: 'User approved successfully',
+        user: result.rows[0]
+      })
+    } catch (err) {
+      console.error('User approval error:', err)
+
+      res.status(500).json({
+        message: err.message
+      })
+    }
+  }
+)
 
 // POST /api/admin/users/:id/reject
 router.post('/users/:id/reject', authenticate, requireAdmin, async (req, res) => {
   try {
-    await query(`UPDATE users SET status = 'rejected', updated_at = NOW() WHERE id = $1`, [req.params.id])
+    await query(
+      `UPDATE users
+       SET status = 'rejected',
+           updated_at = NOW()
+       WHERE id = $1`,
+      [req.params.id]
+    )
+
     res.json({ message: 'User rejected' })
-  } catch (err) { res.status(500).json({ message: err.message }) }
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
 })
 
 // POST /api/admin/users/:id/suspend
 router.post('/users/:id/suspend', authenticate, requireAdmin, async (req, res) => {
   try {
-    await query(`UPDATE users SET status = 'suspended', updated_at = NOW() WHERE id = $1`, [req.params.id])
+    await query(
+      `UPDATE users
+       SET status = 'suspended',
+           updated_at = NOW()
+       WHERE id = $1`,
+      [req.params.id]
+    )
+
     res.json({ message: 'User suspended' })
-  } catch (err) { res.status(500).json({ message: err.message }) }
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
 })
 
 // GET /api/admin/email-health
