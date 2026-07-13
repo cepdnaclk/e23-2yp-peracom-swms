@@ -224,7 +224,13 @@ function DocRow({ doc, onVerify }) {
   )
 }
 
-const REQUIRED_DOCS = ['NIC Copy','Academic Transcript','Income Certificate','Recommendation Letter']
+const COMMON_REQUIRED_DOCS = [
+  'NIC Copy',
+  'Academic Transcript',
+  'Faculty Acceptance Letter',
+  'Student Request Letter',
+  'University ID Copy'
+]
 
 // ══════════════════════════════════════════════════════════
 export default function ApplicationDetailPage() {
@@ -274,10 +280,43 @@ export default function ApplicationDetailPage() {
   if (!app)    return <div className="p-8 text-center text-slate-400">Application not found.</div>
 
   const extra = parseExtra(app.extra_data)
-  const verifiedDocs  = docs.filter(d => d.status === 'Verified').length
-  const submittedDocs = docs.filter(d => d.status === 'Submitted').length
-  const missingDocs   = REQUIRED_DOCS.filter(n => !docs.find(d => d.document_name === n)).length
-  const docScore      = Math.round((verifiedDocs / REQUIRED_DOCS.length) * 100)
+
+const supplementaryDocuments = Array.isArray(
+  app.supplementary_documents
+)
+  ? app.supplementary_documents
+      .map(documentName => String(documentName).trim())
+      .filter(documentName => documentName !== '')
+  : []
+
+const requiredDocs = [
+  ...COMMON_REQUIRED_DOCS,
+  ...supplementaryDocuments
+]
+
+const verifiedDocs = requiredDocs.filter(documentName =>
+  docs.some(
+    document =>
+      document.document_name === documentName &&
+      document.status === 'Verified'
+  )
+).length
+
+const submittedDocs = requiredDocs.filter(documentName =>
+  docs.some(
+    document =>
+      document.document_name === documentName &&
+      document.status === 'Submitted'
+  )
+).length
+
+const missingDocs = requiredDocs.filter(documentName =>
+  !docs.some(document => document.document_name === documentName)
+).length
+
+const docScore = Math.round(
+  (verifiedDocs / requiredDocs.length) * 100
+)
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -308,7 +347,7 @@ export default function ApplicationDetailPage() {
           { label: 'Student',     value: app.student_name,       icon: User,         color: 'bg-purple-50 text-purple-600' },
           { label: 'Department',  value: app.department,          icon: Building,     color: 'bg-blue-50 text-blue-600' },
           { label: 'GPA',         value: app.gpa ? `${parseFloat(app.gpa).toFixed(2)} / 4.00` : '—', icon: Star, color: 'bg-amber-50 text-amber-600' },
-          { label: 'Docs Verified', value: `${verifiedDocs} / ${REQUIRED_DOCS.length}`, icon: FileText, color: 'bg-green-50 text-green-600' },
+          { label: 'Docs Verified', value: `${verifiedDocs} / ${requiredDocs.length}`, icon: FileText, color: 'bg-green-50 text-green-600' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -477,7 +516,7 @@ export default function ApplicationDetailPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {REQUIRED_DOCS.map(name => {
+              {requiredDocs.map(name => {
                 const doc = docs.find(d => d.document_name === name)
                 if (doc) return <DocRow key={name} doc={doc} onVerify={handleVerifyDoc}/>
                 return (
@@ -524,7 +563,7 @@ export default function ApplicationDetailPage() {
 
           {!decision ? (
             <div className="space-y-4">
-              {verifiedDocs < REQUIRED_DOCS.length && (
+              {verifiedDocs < requiredDocs.length && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 flex items-center gap-2">
                   <AlertCircle size={13}/> {missingDocs > 0 ? `${missingDocs} document(s) missing.` : `${submittedDocs} document(s) not yet verified.`} Review documents before approving.
                 </div>

@@ -31,7 +31,9 @@ router.get('/:id', authenticate, async (req, res) => {
     const result = await query(
       `SELECT a.*, u.name AS student_name, u.email, u.phone, u.department,
               u.registration_number, u.batch, u.id AS student_user_id,
-              s.title AS scholarship_title, s.donor_id
+              s.title AS scholarship_title,
+s.donor_id,
+s.supplementary_documents
        FROM applications a
        JOIN users u ON a.student_id = u.id
        JOIN scholarships s ON a.scholarship_id = s.id

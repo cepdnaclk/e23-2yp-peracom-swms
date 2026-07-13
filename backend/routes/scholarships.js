@@ -54,13 +54,43 @@ router.post('/requests/:id/approve', authenticate, requireAdmin, async (req, res
     if (!reqResult.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Not found' }) }
     r = reqResult.rows[0]
     await client.query(
-      `INSERT INTO scholarships (title, description, eligibility_criteria, eligible_batch, funding_amount,
-       required_documents, application_deadline, status, donor_id,
-       category, num_students, opening_date, terms)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'Active',$8,$9,$10,$11,$12)`,
-      [r.scholarship_title, r.description, r.eligibility_criteria, r.eligible_batch,
-      r.funding_amount, r.required_documents, r.application_deadline, r.donor_id,
-      r.category, r.num_students, r.opening_date, r.terms])
+  `INSERT INTO scholarships (
+     title,
+     description,
+     eligibility_criteria,
+     eligible_batch,
+     funding_amount,
+     required_documents,
+     supplementary_documents,
+     application_deadline,
+     status,
+     donor_id,
+     category,
+     num_students,
+     opening_date,
+     terms
+   )
+   VALUES (
+     $1, $2, $3, $4, $5,
+     $6, $7, $8, 'Active', $9,
+     $10, $11, $12, $13
+   )`,
+  [
+    r.scholarship_title,
+    r.description,
+    r.eligibility_criteria,
+    r.eligible_batch,
+    r.funding_amount,
+    r.required_documents,
+    r.supplementary_documents || [],
+    r.application_deadline,
+    r.donor_id,
+    r.category,
+    r.num_students,
+    r.opening_date,
+    r.terms
+  ]
+)
     await client.query(`UPDATE donor_scholarship_requests SET status = 'Approved', updated_at = NOW() WHERE id = $1`, [req.params.id])
 
     // Get donor details

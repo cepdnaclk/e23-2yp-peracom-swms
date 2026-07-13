@@ -23,11 +23,12 @@ const UNIVERSITY_LIST = [
   'Uva Wellassa University', 'Weeramantri Institute', 'Other'
 ]
 
-const REQUIRED_DOCS = [
+const COMMON_REQUIRED_DOCS = [
   { key: 'nic', label: 'NIC Copy' },
   { key: 'transcript', label: 'Academic Transcript' },
-  { key: 'income', label: 'Income Certificate' },
-  { key: 'recommendation', label: 'Recommendation Letter' },
+  { key: 'faculty_acceptance', label: 'Faculty Acceptance Letter' },
+  { key: 'student_request', label: 'Student Request Letter' },
+  { key: 'university_id', label: 'University ID Copy' },
 ]
 
 const STUDY_YEARS = ['1st Year', '2nd Year', '3rd Year', '4th Year', 'Final Year']
@@ -173,8 +174,13 @@ function Step1Personal({ data, onChange, errors, mobileTouched, emailTouched, re
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2">
           <Field label="Full Name" required error={errors.full_name}>
-            <input type="text" placeholder="Enter full name" {...f('full_name')} />
-          </Field>
+  <input
+    type="text"
+    value={data.full_name || ''}
+    readOnly
+    className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
+  />
+</Field>
         </div>
 
         <div className="sm:col-span-2">
@@ -200,38 +206,46 @@ function Step1Personal({ data, onChange, errors, mobileTouched, emailTouched, re
           <input
             id="registration_number"
             type="text"
-            placeholder="e.g. E21001"
+            
             value={data.registration_number || ''}
-            onChange={e => onChange('registration_number', e.target.value)}
-            className={getRegNoClass()}
+            readOnly
+            className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
           />
         </Field>
+        <Field label="Batch" required>
+  <input
+    type="text"
+    value={data.batch ? `Batch ${data.batch}` : ''}
+    readOnly
+    className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
+  />
+</Field>
 
         <Field label="Mobile Number" required error={errors.mobile}>
           <input
             id="mobile"
             type="tel"
-            placeholder="e.g. 0771234567"
+            
             value={data.mobile || ''}
-            onChange={e => onChange('mobile', e.target.value)}
-            className={getMobileClass()}
+            readOnly
+            className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
           />
         </Field>
 
-        <div className="sm:col-span-2">
+        
           <Field label="Email Address" required error={errors.email}>
             <input
               id="email"
               type="email"
-              placeholder="your@email.com"
+              
               value={data.email || ''}
-              onChange={e => onChange('email', e.target.value)}
-              className={getEmailClass()}
+              readOnly
+              className="input-field bg-slate-100 text-slate-600 cursor-not-allowed"
             />
           </Field>
         </div>
       </div>
-    </div>
+    
   )
 }
 
@@ -613,7 +627,7 @@ function Step4Academic({ data, onChange, errors }) {
 // ═══════════════════════════════════════════════════════════════
 // STEP 5 — Documents
 // ═══════════════════════════════════════════════════════════════
-function Step5Documents({ appId, onDocsChange, onNeedSave }) {
+function Step5Documents({ appId, onDocsChange, onNeedSave ,requiredDocs}) {
   const [docs, setDocs] = useState({})
   const [serverDocs, setServerDocs] = useState([])
   const [uploading, setUploading] = useState(null)
@@ -656,7 +670,7 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
     try {
       const fd = new FormData()
       fd.append('file', file)
-      fd.append('document_name', REQUIRED_DOCS.find(d => d.key === key).label)
+      fd.append('document_name', requiredDocs.find(d => d.key === key).label)
       await api.post(`/applications/${appId}/documents`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
@@ -690,7 +704,7 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 
   // Count both local and server uploads
-  const totalUploaded = REQUIRED_DOCS.filter(({ key, label }) =>
+  const totalUploaded = requiredDocs.filter(({ key, label }) =>
     docs[key] || serverUploadedNames.includes(label)
   ).length
 
@@ -710,11 +724,11 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
       <div className="bg-purple-50 rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-semibold text-purple-700">Upload Progress</span>
-          <span className="text-sm font-bold text-purple-700">{totalUploaded} / {REQUIRED_DOCS.length} Uploaded</span>
+          <span className="text-sm font-bold text-purple-700">{totalUploaded} / {requiredDocs.length} Uploaded</span>
         </div>
         <div className="w-full h-2.5 bg-purple-200 rounded-full overflow-hidden">
           <div className="h-full bg-purple-600 rounded-full transition-all duration-500"
-            style={{ width: `${(totalUploaded / REQUIRED_DOCS.length) * 100}%` }} />
+            style={{ width: `${(totalUploaded / requiredDocs.length) * 100}%` }} />
         </div>
         <div className="flex justify-between text-xs text-purple-500 mt-1">
           <span>Allowed: PDF, JPG, JPEG, PNG</span>
@@ -724,7 +738,7 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
 
       {/* Document rows */}
       <div className="space-y-3">
-        {REQUIRED_DOCS.map(({ key, label }) => {
+        {requiredDocs.map(({ key, label }) => {
           const localDoc = docs[key]
           const serverDoc = serverDocs.find(d => d.document_name === label)
           const isDone = !!localDoc || !!serverDoc
@@ -805,9 +819,9 @@ function Step5Documents({ appId, onDocsChange, onNeedSave }) {
         })}
       </div>
 
-      {totalUploaded < REQUIRED_DOCS.length && (
+      {totalUploaded < requiredDocs.length && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-          ⚠️ Please upload all {REQUIRED_DOCS.length} required documents before submitting.
+          ⚠️ Please upload all {requiredDocs.length} required documents before submitting.
         </div>
       )}
     </div>
@@ -834,6 +848,24 @@ export default function ScholarshipDetail() {
 
   const [formData, setFormData] = useState({})
   const [errors, setErrors] = useState({})
+  // Supplementary documents requested for this particular scholarship
+const supplementaryDocuments = Array.isArray(
+  scholarship?.supplementary_documents
+)
+  ? scholarship.supplementary_documents
+      .map(documentName => String(documentName).trim())
+      .filter(documentName => documentName !== '')
+  : []
+
+// Final upload list = common documents + donor-requested documents
+const requiredDocs = [
+  ...COMMON_REQUIRED_DOCS,
+
+  ...supplementaryDocuments.map((documentName, index) => ({
+    key: `supplementary_${index}`,
+    label: documentName
+  }))
+]
 
   const [mobileTouched, setMobileTouched] = useState(false)
   const [emailTouched, setEmailTouched] = useState(false)
@@ -847,6 +879,41 @@ export default function ScholarshipDetail() {
       .catch(() => toast.error('Scholarship not found'))
       .finally(() => setLoading(false))
   }, [id])
+  // Load logged-in student's details and auto-fill the application
+useEffect(() => {
+  const loadStudentProfile = async () => {
+    try {
+      const response = await api.get('/student/profile')
+      const profile = response.data
+
+      setFormData(previousData => ({
+        ...previousData,
+
+        // Auto-filled student account details
+        full_name: profile.name || '',
+        email: profile.email || '',
+        mobile: profile.phone || '',
+        batch: profile.batch || '',
+        registration_number: profile.registration_number || '',
+        department: profile.department || '',
+
+        // Auto-fill the address only if it exists in the profile
+        postal_address:
+          previousData.postal_address ||
+          profile.address ||
+          ''
+      }))
+    } catch (err) {
+      console.error(err)
+
+      toast.error(
+        'Unable to load your profile details. Please refresh the page.'
+      )
+    }
+  }
+
+  loadStudentProfile()
+}, [])
 
   // Load existing application status for Payment Details unlock check
   useEffect(() => {
@@ -1066,10 +1133,12 @@ export default function ScholarshipDetail() {
 
     if (!declared) { toast.error('Please check the declaration checkbox'); return }
     const uploadedCount = Object.values(docs).filter(Boolean).length
-    if (uploadedCount < REQUIRED_DOCS.length) {
-      toast.error(`Please upload all ${REQUIRED_DOCS.length} required documents first`)
-      return
-    }
+    if (uploadedCount < requiredDocs.length) {
+  toast.error(
+    `Please upload all ${requiredDocs.length} required documents first`
+  )
+  return
+}
     setSubmitting(true)
     try {
       const payload = buildPayload()
@@ -1171,7 +1240,12 @@ export default function ScholarshipDetail() {
             {step === 3 && <Step4Academic data={formData} onChange={updateField} errors={errors} />}
             {step === 4 && (
               <div className="space-y-6">
-                <Step5Documents appId={savedAppId} onDocsChange={setDocs} onNeedSave={handleSaveDraft} />
+               <Step5Documents
+  appId={savedAppId}
+  onDocsChange={setDocs}
+  onNeedSave={handleSaveDraft}
+  requiredDocs={requiredDocs}
+/>
 
                 {/* Declaration */}
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">

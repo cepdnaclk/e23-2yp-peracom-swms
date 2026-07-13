@@ -4,6 +4,13 @@ import toast from 'react-hot-toast'
 import { StatusBadge } from '../../components/common/StatusBadge'
 import api from '../../services/api'
 import { format } from 'date-fns'
+const COMMON_REQUIRED_DOCUMENTS = [
+  'NIC Copy',
+  'Academic Transcript',
+  'Faculty Acceptance Letter',
+  'Student Request Letter',
+  'University ID Copy'
+]
 
 const emptyForm = {
   scholarship_title: '',
@@ -13,7 +20,8 @@ const emptyForm = {
   eligibility_criteria: '',
   opening_date: '',
   application_deadline: '',
-  required_documents: [],
+  required_documents: COMMON_REQUIRED_DOCUMENTS,
+ supplementary_documents: '',
   description: '',
   notes: '',
   terms: '',
@@ -69,7 +77,15 @@ export default function DonorScholarships() {
         application_deadline: form.application_deadline,
         description: form.description,
         eligibility_criteria: form.eligibility_criteria,
-        required_documents: form.required_documents ? form.required_documents.join(', ') : '',
+        required_documents: COMMON_REQUIRED_DOCUMENTS.join(', '),
+        
+
+supplementary_documents: form.supplementary_documents
+  .split(/\r?\n/)
+  .map(documentName => documentName.trim())
+  .filter(documentName => documentName !== ''),
+        
+
         notes: form.notes,
         num_students: form.num_students ? parseInt(form.num_students) : null,
         opening_date: form.opening_date,
@@ -100,8 +116,13 @@ export default function DonorScholarships() {
       eligibility_criteria: r.eligibility_criteria || '',
       opening_date: r.opening_date ? format(new Date(r.opening_date), 'yyyy-MM-dd') : '',
       application_deadline: r.application_deadline ? format(new Date(r.application_deadline), 'yyyy-MM-dd') : '',
-      required_documents: r.required_documents ? r.required_documents.split(', ') : [],
-      description: r.description || '',
+      required_documents: COMMON_REQUIRED_DOCUMENTS,
+
+supplementary_documents: Array.isArray(r.supplementary_documents)
+  ? r.supplementary_documents.join('\n')
+  : '',
+
+description: r.description || '',
       notes: r.notes || '',
       terms: r.terms || '',
       confirmed: false,
@@ -119,8 +140,13 @@ export default function DonorScholarships() {
       eligibility_criteria: r.eligibility_criteria || '',
       opening_date: r.opening_date ? format(new Date(r.opening_date), 'yyyy-MM-dd') : '',
       application_deadline: r.application_deadline ? format(new Date(r.application_deadline), 'yyyy-MM-dd') : '',
-      required_documents: r.required_documents ? r.required_documents.split(', ') : [],
-      description: r.description || '',
+      required_documents: COMMON_REQUIRED_DOCUMENTS,
+
+supplementary_documents: Array.isArray(r.supplementary_documents)
+  ? r.supplementary_documents.join('\n')
+  : '',
+
+description: r.description || '',
       notes: r.notes || '',
       terms: r.terms || '',
       confirmed: false,
@@ -227,45 +253,66 @@ export default function DonorScholarships() {
             </div>
 
             {/* Section 4: Required Documents */}
-            <div className="space-y-4 pt-4 border-t border-slate-100">
-              <h3 className="text-sm font-bold text-purple-700 pb-1.5 border-b border-slate-100 flex items-center gap-1.5">
-                <FileText size={16} /> Section 4: Required Documents
-              </h3>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-2">Select the documents students must upload during application submission:</label>
-                <div className="grid sm:grid-cols-2 gap-3.5">
-                  {[
-                    { key: 'NIC Copy', label: 'NIC Copy' },
-                    { key: 'Academic Transcript', label: 'Academic Transcript' },
-                    { key: 'Income Certificate', label: 'Income Certificate' },
-                    { key: 'Recommendation Letter', label: 'Recommendation Letter' },
-                    { key: 'Bank Passbook Copy', label: 'Bank Passbook Copy (Required only after scholarship approval)', helper: true }
-                  ].map(doc => {
-                    const checked = form.required_documents.includes(doc.key)
-                    return (
-                      <label key={doc.key} className="flex items-start gap-2.5 cursor-pointer text-sm text-slate-700 bg-slate-50 hover:bg-slate-100/70 p-3 rounded-xl border border-slate-100/60 transition-colors">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            const next = checked
-                              ? form.required_documents.filter(d => d !== doc.key)
-                              : [...form.required_documents, doc.key]
-                            setForm({ ...form, required_documents: next })
-                          }}
-                          className="mt-0.5 w-4 h-4 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
-                        />
-                        <div>
-                          <p className="font-semibold text-xs text-slate-800">{doc.label}</p>
-                          {doc.helper && <p className="text-[10px] text-slate-400 mt-0.5">Will be requested post-selection</p>}
-                        </div>
-                      </label>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
+            {/* Section 4: Required Documents */}
+<div className="space-y-4 pt-4 border-t border-slate-100">
+  <h3 className="text-sm font-bold text-purple-700 pb-1.5 border-b border-slate-100 flex items-center gap-1.5">
+    <FileText size={16} />
+    Section 4: Required Documents
+  </h3>
 
+  {/* Common documents */}
+  <div>
+    <label className="block text-xs font-semibold text-slate-600 mb-2">
+      Common documents required from every student
+    </label>
+
+    <div className="grid sm:grid-cols-2 gap-3">
+      {COMMON_REQUIRED_DOCUMENTS.map(documentName => (
+        <div
+          key={documentName}
+          className="flex items-center gap-2.5 bg-green-50 border border-green-100 p-3 rounded-xl"
+        >
+          <span className="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs">
+            ✓
+          </span>
+
+          <p className="text-xs font-semibold text-slate-700">
+            {documentName}
+          </p>
+        </div>
+      ))}
+    </div>
+
+    <p className="text-[11px] text-slate-400 mt-2">
+      These documents are automatically required for every scholarship.
+    </p>
+  </div>
+
+  {/* Supplementary documents */}
+  <div>
+    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+      Supplementary Documents
+    </label>
+
+    <textarea
+      rows={5}
+      value={form.supplementary_documents}
+      onChange={event =>
+        setForm({
+          ...form,
+          supplementary_documents: event.target.value
+        })
+      }
+      placeholder={`Enter one document per line.\nExample:\nGrama Niladhari Certificate\nFamily Income Report`}
+      className="input-field resize-none"
+    />
+
+    <p className="text-[11px] text-slate-400 mt-1.5">
+      Optional: Enter each additional document on a separate line.
+      Students applying for this scholarship will be asked to upload them.
+    </p>
+  </div>
+</div>
             {/* Section 5: Donor Information */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-purple-700 pb-1.5 border-b border-slate-100 flex items-center gap-1.5">

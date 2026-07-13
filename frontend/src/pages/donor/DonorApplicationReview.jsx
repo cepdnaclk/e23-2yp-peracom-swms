@@ -15,7 +15,13 @@ import api from '../../services/api'
 import { format } from 'date-fns'
 
 const parseExtra = (raw) => { try { return raw ? JSON.parse(raw) : {} } catch { return {} } }
-const REQUIRED_DOCS = ['NIC Copy','Academic Transcript','Income Certificate','Recommendation Letter']
+const COMMON_REQUIRED_DOCS = [
+  'NIC Copy',
+  'Academic Transcript',
+  'Faculty Acceptance Letter',
+  'Student Request Letter',
+  'University ID Copy'
+]
 
 // ── Collapsible Section (reused pattern from admin review page)
 function Section({ title, icon: Icon, color = 'purple', children, collapsible = false, defaultOpen = true, badge }) {
@@ -281,12 +287,49 @@ export default function DonorApplicationReview() {
     </div>
   )
 
+  
   const extra = parseExtra(app?.extra_data)
-  const verifiedDocs  = docs.filter(d => d.status === 'Verified').length
-  const submittedDocs = docs.filter(d => d.status === 'Submitted').length
-  const missingDocs   = REQUIRED_DOCS.filter(n => !docs.find(d => d.document_name === n)).length
-  const docScore      = Math.round((verifiedDocs / REQUIRED_DOCS.length) * 100)
-  const alreadyDecided = assignment.donor_decision === 'Approved' || assignment.donor_decision === 'Rejected'
+
+const supplementaryDocuments = Array.isArray(
+  app?.supplementary_documents
+)
+  ? app.supplementary_documents
+      .map(documentName => String(documentName).trim())
+      .filter(documentName => documentName !== '')
+  : []
+
+const requiredDocs = [
+  ...COMMON_REQUIRED_DOCS,
+  ...supplementaryDocuments
+]
+
+const verifiedDocs = requiredDocs.filter(documentName =>
+  docs.some(
+    document =>
+      document.document_name === documentName &&
+      document.status === 'Verified'
+  )
+).length
+
+const submittedDocs = requiredDocs.filter(documentName =>
+  docs.some(
+    document =>
+      document.document_name === documentName &&
+      document.status === 'Submitted'
+  )
+).length
+
+const missingDocs = requiredDocs.filter(documentName =>
+  !docs.some(document => document.document_name === documentName)
+).length
+
+const docScore = Math.round(
+  (verifiedDocs / requiredDocs.length) * 100
+)
+
+const alreadyDecided =
+  assignment.donor_decision === 'Approved' ||
+  assignment.donor_decision === 'Rejected'
 
   return (
     <div className="space-y-5 max-w-4xl pb-32">
@@ -317,7 +360,7 @@ export default function DonorApplicationReview() {
           { label: 'Batch',       value: assignment.batch,                       icon: Calendar,   color: 'bg-purple-50 text-purple-600' },
           { label: 'Department',  value: assignment.department,                  icon: Building,   color: 'bg-blue-50 text-blue-600' },
           { label: 'GPA',         value: assignment.gpa ? `${parseFloat(assignment.gpa).toFixed(2)} / 4.00` : '—', icon: Star, color: 'bg-amber-50 text-amber-600' },
-          { label: 'Docs Verified', value: `${verifiedDocs} / ${REQUIRED_DOCS.length}`, icon: FileText, color: 'bg-green-50 text-green-600' },
+          { label: 'Docs Verified', value: `${verifiedDocs} / ${requiredDocs.length}`, icon: FileText, color: 'bg-green-50 text-green-600' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-4 flex items-center gap-3">
             <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
@@ -484,7 +527,7 @@ export default function DonorApplicationReview() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {REQUIRED_DOCS.map(name => (
+              {requiredDocs.map(name => (
                 <DocRow key={name} name={name} doc={docs.find(d => d.document_name === name)}/>
               ))}
             </tbody>

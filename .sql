@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS scholarships (
   eligible_batch        TEXT,
   funding_amount        NUMERIC(14,2),
   required_documents    TEXT,
+  supplementary_documents TEXT[] DEFAULT '{}',
   application_deadline  DATE,
   status                VARCHAR(20) NOT NULL DEFAULT 'Active'
                         CHECK (status IN ('Active','Inactive','Draft')),
@@ -75,6 +76,7 @@ CREATE TABLE IF NOT EXISTS donor_scholarship_requests (
   description           TEXT,
   eligibility_criteria  TEXT,
   required_documents    TEXT,
+  supplementary_documents TEXT[] DEFAULT '{}',
   notes                 TEXT,
   status                VARCHAR(20) NOT NULL DEFAULT 'Pending'
                         CHECK (status IN ('Pending','Approved','Rejected')),
