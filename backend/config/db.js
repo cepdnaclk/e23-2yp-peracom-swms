@@ -4,9 +4,23 @@ dotenv.config()
 
 const { Pool } = pg
 
+const databaseUrl = process.env.DATABASE_URL
+let databaseHostname = ''
+
+if (databaseUrl) {
+  try {
+    databaseHostname = new URL(databaseUrl).hostname
+  } catch {
+    databaseHostname = ''
+  }
+}
+
+const sslMode = (process.env.PGSSLMODE || process.env.DB_SSL || '').toLowerCase()
+const shouldUseSsl = sslMode === 'require' || sslMode === 'true' || /\.supabase\.co$/i.test(databaseHostname)
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  connectionString: databaseUrl,
+  ssl: shouldUseSsl ? { rejectUnauthorized: false } : false,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 10000,

@@ -94,10 +94,10 @@ function HeroSection() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link to="/student/scholarships"
+            <a href="#scholarships"
               className="inline-flex items-center justify-center gap-2 bg-white text-purple-700 font-bold px-8 py-3.5 rounded-xl hover:bg-purple-50 transition-colors shadow-lg">
               View Scholarships <ArrowRight size={18} />
-            </Link>
+            </a>
             <a href="#about"
               className="inline-flex items-center justify-center gap-2 bg-white/10 border-2 border-white/40 text-white font-semibold px-8 py-3.5 rounded-xl hover:bg-white/20 transition-colors">
               Learn More
@@ -195,7 +195,7 @@ function FeaturedScholarships() {
   const display = scholarships.length > 0 ? scholarships : placeholders
 
   return (
-    <section className="bg-white py-20">
+    <section id="scholarships" className="bg-white py-20 scroll-mt-16">
       <div className="max-w-7xl mx-auto px-4">
         <div className="text-center mb-12">
           <p className="section-label mb-2">Scholarships</p>
