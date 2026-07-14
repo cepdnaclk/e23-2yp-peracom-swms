@@ -27,7 +27,7 @@ router.get('/stats', authenticate, requireStudent, async (req, res) => {
 router.get('/profile', authenticate, requireStudent, async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, name, email, phone, department, batch, registration_number, address, gpa, current_year,
+      `SELECT id, name, email, phone, department, batch, registration_number, gpa, current_year,
               monthly_income, num_dependents
        FROM users WHERE id = $1`, [req.user.id])
     if (!result.rows.length) return res.status(404).json({ message: 'Not found' })
@@ -38,14 +38,56 @@ router.get('/profile', authenticate, requireStudent, async (req, res) => {
 // PUT /api/student/profile
 router.put('/profile', authenticate, requireStudent, async (req, res) => {
   try {
-    const { name, phone, address } = req.body
+    const name = req.body.name?.trim()
+    const phone = req.body.phone?.trim()
+
+    if (!name) {
+      return res.status(400).json({
+        message: 'Full name is required',
+      })
+    }
+
+    if (!/^07\d{8}$/.test(phone)) {
+      return res.status(400).json({
+        message:
+          'Phone number must start with 07 and contain exactly 10 digits',
+      })
+    }
+
     const result = await query(
-      `UPDATE users SET name = COALESCE($1, name), phone = COALESCE($2, phone),
-       address = COALESCE($3, address), updated_at = NOW()
-       WHERE id = $4 RETURNING id, name, email, phone, address`,
-      [name, phone, address, req.user.id])
+      `UPDATE users
+       SET
+         name = $1,
+         phone = $2,
+         updated_at = NOW()
+       WHERE id = $3
+         AND role = 'student'
+       RETURNING
+         id,
+         name,
+         email,
+         phone,
+         department,
+         batch,
+         registration_number,
+         gpa`,
+      [name, phone, req.user.id]
+    )
+
+    if (!result.rows.length) {
+      return res.status(404).json({
+        message: 'Student profile not found',
+      })
+    }
+
     res.json(result.rows[0])
-  } catch (err) { res.status(500).json({ message: err.message }) }
+  } catch (err) {
+    console.error('Update student profile error:', err)
+
+    res.status(500).json({
+      message: 'Failed to update student profile',
+    })
+  }
 })
 
 // GET /api/student/applications
