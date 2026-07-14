@@ -128,7 +128,60 @@ useEffect(() => {
     </p>
   )}
 </div>
-            <Field name="registration_number" label="Registration Number" placeholder="e.g. E/18/001" />
+            <div>
+  <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+    Registration Number *
+  </label>
+
+  <input
+    type="text"
+    maxLength={6}
+    placeholder="e.g. E23040"
+    {...register('registration_number', {
+      required: 'Registration number is required',
+
+      setValueAs: (value) =>
+        value?.trim().toUpperCase(),
+
+      pattern: {
+        value: /^E\d{5}$/,
+        message:
+          'Registration number must be in the format E23040',
+      },
+    })}
+    onInput={(event) => {
+      let value = event.target.value.toUpperCase()
+
+      // Remove spaces, symbols and other letters
+      value = value.replace(/[^E0-9]/g, '')
+
+      // Keep only one E at the beginning
+      if (value.startsWith('E')) {
+        value =
+          'E' +
+          value
+            .slice(1)
+            .replace(/E/g, '')
+            .replace(/\D/g, '')
+      } else {
+        value =
+          'E' +
+          value
+            .replace(/E/g, '')
+            .replace(/\D/g, '')
+      }
+
+      event.target.value = value.slice(0, 6)
+    }}
+    className="input-field"
+  />
+
+  {errors.registration_number && (
+    <p className="text-xs text-red-500 mt-1">
+      {errors.registration_number.message}
+    </p>
+  )}
+</div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Password *</label>

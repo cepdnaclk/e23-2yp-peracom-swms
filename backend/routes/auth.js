@@ -346,12 +346,19 @@ router.post('/register/student', async (req, res) => {
       registration_number
     } = req.body
 
-    if (!name || !email || !password || !phone || !batch) {
-      return res.status(400).json({
-        message:
-          'Name, email, password, phone number, and batch are required'
-      })
-    }
+    if (
+  !name ||
+  !email ||
+  !password ||
+  !phone ||
+  !batch ||
+  !registration_number
+) {
+  return res.status(400).json({
+    message:
+      'Name, email, password, phone number, batch, and registration number are required'
+  })
+}
 
     // Validate Sri Lankan mobile number
     const sriLankanPhonePattern = /^07\d{8}$/
@@ -362,6 +369,22 @@ router.post('/register/student', async (req, res) => {
           'Phone number must contain 10 digits and start with 07'
       })
     }
+    // Validate student registration number
+const registrationNumberPattern = /^E\d{5}$/
+
+const normalizedRegistrationNumber =
+  registration_number.trim().toUpperCase()
+
+if (
+  !registrationNumberPattern.test(
+    normalizedRegistrationNumber
+  )
+) {
+  return res.status(400).json({
+    message:
+      'Registration number must be in the format E23040'
+  })
+}
 
     // Validate active batch
     const batchResult = await query(
@@ -393,7 +416,19 @@ router.post('/register/student', async (req, res) => {
         message: 'Email already registered'
       })
     }
+    // Check duplicate student registration number
+const registrationExists = await query(
+  `SELECT id
+   FROM users
+   WHERE UPPER(registration_number) = $1`,
+  [normalizedRegistrationNumber]
+)
 
+if (registrationExists.rows.length > 0) {
+  return res.status(409).json({
+    message: 'Registration number is already registered'
+  })
+}
     const passwordHash = await bcrypt.hash(password, 12)
 
     const {
@@ -447,7 +482,7 @@ router.post('/register/student', async (req, res) => {
         phone.trim(),
         department,
         String(batch),
-        registration_number?.trim() || null,
+        normalizedRegistrationNumber,
         verificationTokenHash,
         verificationExpires
       ]
@@ -518,7 +553,7 @@ router.post('/register/donor', async (req, res) => {
         message: 'Email already registered'
       })
     }
-
+   
     const passwordHash = await bcrypt.hash(password, 12)
 
     const {
