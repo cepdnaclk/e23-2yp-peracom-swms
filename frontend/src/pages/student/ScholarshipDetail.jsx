@@ -1,9 +1,26 @@
+
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Check, Plus, Trash2, Upload, Eye, Download, FileText, AlertCircle } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Send,
+  User,
+  WalletCards,
+  ArrowLeft,
+  Check,
+  Plus,
+  Trash2,
+  Upload,
+  Eye,
+  FileText,
+  AlertCircle
+} from 'lucide-react'
 import toast from 'react-hot-toast'
 import Step6PaymentDetails from '../../components/student/Step6PaymentDetails'
 import api from '../../services/api'
+import { Modal } from '../../components/common/Modal'
+
 
 // ─── Constants ───────────────────────────────────────────────
 const STEPS = ['Personal Info', 'Family Details', 'Financial Details', 'Academic Details', 'Documents', 'Payment Details']
@@ -667,35 +684,55 @@ function Step5Documents({ appId, onDocsChange, onNeedSave ,requiredDocs}) {
     }
 
     setUploading(key)
+
     try {
       const fd = new FormData()
       fd.append('file', file)
-      fd.append('document_name', requiredDocs.find(d => d.key === key).label)
+      fd.append(
+        'document_name',
+        requiredDocs.find(document => document.key === key).label
+      )
+
       await api.post(`/applications/${appId}/documents`, fd, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
+
+      const updated = {
+        ...docs,
+        [key]: {
+          file,
+          name: file.name,
+          size: file.size
+        }
+      }
+
+      setDocs(updated)
+
+      const response = await api.get(`/applications/${appId}/documents`)
+      setServerDocs(response.data || [])
+
       toast.success('Document uploaded successfully!')
-      // Refresh server doc list so admin/donor can see it immediately
-      const r = await api.get(`/applications/${appId}/documents`)
-      setServerDocs(r.data || [])
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Upload failed')
     } finally {
       setUploading(null)
-      if (fileRefs.current[key]) fileRefs.current[key].value = ''
-    }
 
-    const updated = { ...docs, [key]: { file, name: file.name, size: file.size } }
-    setDocs(updated)
-    onDocsChange(updated)
+      if (fileRefs.current[key]) {
+        fileRefs.current[key].value = ''
+      }
+    }
   }
 
   const removeDoc = (key) => {
     const updated = { ...docs }
     delete updated[key]
     setDocs(updated)
-    setPreviews(p => { const n = { ...p }; delete n[key]; return n })
-    onDocsChange(updated)
+
+setPreviews(previousPreviews => {
+  const updatedPreviews = { ...previousPreviews }
+  delete updatedPreviews[key]
+  return updatedPreviews
+})
     if (fileRefs.current[key]) fileRefs.current[key].value = ''
   }
 
@@ -707,7 +744,23 @@ function Step5Documents({ appId, onDocsChange, onNeedSave ,requiredDocs}) {
   const totalUploaded = requiredDocs.filter(({ key, label }) =>
     docs[key] || serverUploadedNames.includes(label)
   ).length
+  useEffect(() => {
+    const documentStatus = {}
 
+    requiredDocs.forEach(({ key, label }) => {
+      const localDocument = docs[key]
+      const serverDocument = serverDocs.find(
+        document => document.document_name === label
+      )
+
+      documentStatus[key] = {
+        uploaded: Boolean(localDocument || serverDocument),
+        label
+      }
+    })
+
+    onDocsChange(documentStatus)
+  }, [docs, serverDocs])
   return (
     <div className="space-y-5">
       <SectionHeader title="Required Documents" subtitle="Upload all required documents before submitting." />
@@ -827,14 +880,14 @@ function Step5Documents({ appId, onDocsChange, onNeedSave ,requiredDocs}) {
     </div>
   )
 }
-
 // ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 export default function ScholarshipDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-
+ const [showSubmitConfirmation, setShowSubmitConfirmation] =
+  useState(false)
   const [scholarship, setScholarship] = useState(null)
   const [applying, setApplying] = useState(false)
   const [step, setStep] = useState(0)
@@ -911,6 +964,8 @@ useEffect(() => {
       )
     }
   }
+  
+
 
   loadStudentProfile()
 }, [])
@@ -1081,76 +1136,141 @@ useEffect(() => {
       semester: formData.semester,
     })
   })
-
-  const handleSubmit = async () => {
-    // Perform final validation check before submission
-    const regNoErr = validateRegNo(formData.registration_number)
-    const mobileErr = validateMobile(formData.mobile)
-    const emailErr = validateEmail(formData.email)
-    const fatherContactErr = validateContactNumber(formData.father_contact)
-    const motherContactErr = validateContactNumber(formData.mother_contact)
-
-    if (regNoErr || mobileErr || emailErr || fatherContactErr || motherContactErr) {
-      setRegNoTouched(true)
-      setMobileTouched(true)
-      setEmailTouched(true)
-      setFatherContactTouched(true)
-      setMotherContactTouched(true)
-      setErrors(p => ({
-        ...p,
-        registration_number: regNoErr,
-        mobile: mobileErr,
-        email: emailErr,
-        father_contact: fatherContactErr,
-        mother_contact: motherContactErr
-      }))
-
-      if (regNoErr || mobileErr || emailErr) {
-        setStep(0) // Prevent submission and return to step 1
-        setTimeout(() => {
-          const fieldId = regNoErr ? 'registration_number' : (mobileErr ? 'mobile' : 'email')
-          const element = document.getElementById(fieldId)
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            element.focus()
-          }
-        }, 100)
-      } else {
-        setStep(2) // Prevent submission and return to step 3 (Financial Details)
-        setTimeout(() => {
-          const fieldId = fatherContactErr ? 'father_contact' : 'mother_contact'
-          const element = document.getElementById(fieldId)
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            element.focus()
-          }
-        }, 100)
-      }
-
-      toast.error(regNoErr || mobileErr || emailErr || fatherContactErr || motherContactErr)
-      return
-    }
-
-    if (!declared) { toast.error('Please check the declaration checkbox'); return }
-    const uploadedCount = Object.values(docs).filter(Boolean).length
-    if (uploadedCount < requiredDocs.length) {
-  toast.error(
-    `Please upload all ${requiredDocs.length} required documents first`
+  const handleReviewApplication = () => {
+  const regNoErr = validateRegNo(
+    formData.registration_number
   )
-  return
-}
-    setSubmitting(true)
-    try {
-      const payload = buildPayload()
-      await api.post('/student/applications', payload)
-      toast.success('Application submitted successfully!')
-      navigate('/student/applications')
-    } catch (err) {
-      toast.error(err?.response?.data?.message || 'Failed to submit application')
-    } finally {
-      setSubmitting(false)
+
+  const mobileErr = validateMobile(formData.mobile)
+  const emailErr = validateEmail(formData.email)
+
+  const fatherContactErr = validateContactNumber(
+    formData.father_contact
+  )
+
+  const motherContactErr = validateContactNumber(
+    formData.mother_contact
+  )
+
+  if (
+    regNoErr ||
+    mobileErr ||
+    emailErr ||
+    fatherContactErr ||
+    motherContactErr
+  ) {
+    setRegNoTouched(true)
+    setMobileTouched(true)
+    setEmailTouched(true)
+    setFatherContactTouched(true)
+    setMotherContactTouched(true)
+
+    setErrors((previousErrors) => ({
+      ...previousErrors,
+      registration_number: regNoErr,
+      mobile: mobileErr,
+      email: emailErr,
+      father_contact: fatherContactErr,
+      mother_contact: motherContactErr
+    }))
+
+    if (regNoErr || mobileErr || emailErr) {
+      setStep(0)
+
+      setTimeout(() => {
+        const fieldId = regNoErr
+          ? 'registration_number'
+          : mobileErr
+            ? 'mobile'
+            : 'email'
+
+        const element = document.getElementById(fieldId)
+
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+
+          element.focus()
+        }
+      }, 100)
+    } else {
+      setStep(2)
+
+      setTimeout(() => {
+        const fieldId = fatherContactErr
+          ? 'father_contact'
+          : 'mother_contact'
+
+        const element = document.getElementById(fieldId)
+
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          })
+
+          element.focus()
+        }
+      }, 100)
     }
+
+    toast.error(
+      regNoErr ||
+      mobileErr ||
+      emailErr ||
+      fatherContactErr ||
+      motherContactErr
+    )
+
+    return
   }
+
+  if (!declared) {
+    toast.error(
+      'Please confirm that the information is true and accurate'
+    )
+    return
+  }
+
+  const uploadedCount = Object.values(docs).filter(
+  document => document?.uploaded
+).length
+
+  if (uploadedCount < requiredDocs.length) {
+    toast.error(
+      `Please upload all ${requiredDocs.length} required documents first`
+    )
+    return
+  }
+
+  setShowSubmitConfirmation(true)
+}
+  const confirmSubmitApplication = async () => {
+  try {
+    setSubmitting(true)
+
+    const payload = buildPayload()
+
+    await api.post('/student/applications', payload)
+
+    setShowSubmitConfirmation(false)
+
+    toast.success(
+      'Application submitted successfully!'
+    )
+
+    navigate('/student/applications')
+  } catch (err) {
+    toast.error(
+      err?.response?.data?.message ||
+      'Failed to submit application'
+    )
+  } finally {
+    setSubmitting(false)
+  }
+}
 
   // ─────────────────────────────────────────
   if (loading) return <div className="p-8 text-center text-slate-400">Loading...</div>
@@ -1295,12 +1415,18 @@ useEffect(() => {
 
               {/* Step 4 (Documents): Submit Application */}
               {step === 4 && (
-                <button onClick={handleSubmit} disabled={submitting || !declared || validateRegNo(formData.registration_number) !== '' || validateMobile(formData.mobile) !== '' || validateEmail(formData.email) !== '' || validateContactNumber(formData.father_contact) !== '' || validateContactNumber(formData.mother_contact) !== ''}
-                  className="btn-primary px-8 disabled:opacity-50">
-                  {submitting
-                    ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</span>
-                    : '✓ Submit Application'}
-                </button>
+                <button
+  type="button"
+  onClick={handleReviewApplication}
+  disabled={submitting}
+  className="btn-primary px-8 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  <Send size={17} />
+
+  {submitting
+    ? 'Submitting...'
+    : 'Review & Submit'}
+</button>
               )}
 
               {/* Step 5 (Payment): just show Next to go back or close */}
@@ -1321,6 +1447,267 @@ useEffect(() => {
           </div>
         </div>
       )}
+      <Modal
+  open={showSubmitConfirmation}
+  onClose={() => {
+    if (!submitting) {
+      setShowSubmitConfirmation(false)
+    }
+  }}
+  title="Review and confirm application"
+  size="lg"
+>
+  <div className="space-y-6">
+    {/* Warning */}
+    <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+      <AlertTriangle
+        size={21}
+        className="mt-0.5 flex-shrink-0 text-amber-600"
+      />
+
+      <div>
+        <p className="font-semibold text-amber-900">
+          Please check your details carefully
+        </p>
+
+        <p className="mt-1 text-sm leading-relaxed text-amber-700">
+          Once submitted, you may not be able to edit this
+          application unless an administrator requests a
+          resubmission.
+        </p>
+      </div>
+    </div>
+
+    {/* Scholarship */}
+    <section className="rounded-xl border border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <FileText size={17} className="text-purple-600" />
+
+        <h3 className="font-semibold text-slate-800">
+          Scholarship
+        </h3>
+      </div>
+
+      <div className="p-4">
+        <p className="text-xs font-medium text-slate-500">
+          Applying for
+        </p>
+
+        <p className="mt-1 font-semibold text-slate-800">
+          {scholarship?.title || '—'}
+        </p>
+      </div>
+    </section>
+
+    {/* Student details */}
+    <section className="rounded-xl border border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <User size={17} className="text-purple-600" />
+
+        <h3 className="font-semibold text-slate-800">
+          Student details
+        </h3>
+      </div>
+
+      <div className="grid gap-4 p-4 sm:grid-cols-2">
+        <ReviewItem
+          label="Full name"
+          value={formData.full_name}
+        />
+
+        <ReviewItem
+          label="Registration number"
+          value={formData.registration_number}
+        />
+
+        <ReviewItem
+          label="Batch"
+          value={formData.batch}
+        />
+
+        <ReviewItem
+          label="Current year"
+          value={formData.current_year}
+        />
+
+        <ReviewItem
+          label="Email"
+          value={formData.email}
+        />
+
+        <ReviewItem
+          label="Phone"
+          value={formData.mobile}
+        />
+      </div>
+    </section>
+
+    {/* Financial details */}
+    <section className="rounded-xl border border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <WalletCards
+          size={17}
+          className="text-purple-600"
+        />
+
+        <h3 className="font-semibold text-slate-800">
+          Financial and academic details
+        </h3>
+      </div>
+
+      <div className="grid gap-4 p-4 sm:grid-cols-2">
+        <ReviewItem
+          label="Monthly family income"
+          value={
+            formData.total_family_income
+              ? `LKR ${Number(
+                  formData.total_family_income
+                ).toLocaleString()}`
+              : '—'
+          }
+        />
+
+        <ReviewItem
+          label="Number of dependents"
+          value={formData.num_dependents}
+        />
+
+        <ReviewItem
+          label="Semester"
+          value={formData.semester}
+        />
+
+        <ReviewItem
+          label="GPA"
+          value={formData.gpa || 'Not applicable'}
+        />
+
+        <ReviewItem
+          label="Receiving Mahapola"
+          value={formData.receiving_mahapola || 'Not selected'}
+        />
+
+        <ReviewItem
+          label="Receiving bursary"
+          value={formData.receiving_bursary || 'Not selected'}
+        />
+      </div>
+    </section>
+
+    {/* Documents */}
+    <section className="rounded-xl border border-slate-200">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+        <CheckCircle2
+          size={17}
+          className="text-green-600"
+        />
+
+        <h3 className="font-semibold text-slate-800">
+          Required documents
+        </h3>
+      </div>
+
+      <div className="space-y-2 p-4">
+        {requiredDocs.map(({ key, label }) => {
+  const uploaded = Boolean(docs[key]?.uploaded)
+
+  return (
+    <div
+      key={key}
+      className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2"
+    >
+      <div className="flex items-center gap-2">
+        {uploaded ? (
+          <CheckCircle2
+            size={16}
+            className="text-green-600"
+          />
+        ) : (
+          <AlertCircle
+            size={16}
+            className="text-red-500"
+          />
+        )}
+
+        <span className="text-sm text-slate-700">
+          {label}
+        </span>
+      </div>
+
+      <span
+        className={
+          uploaded
+            ? 'rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-700'
+            : 'rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-600'
+        }
+      >
+        {uploaded ? 'Uploaded' : 'Missing'}
+      </span>
+    </div>
+  )
+})}
+      </div>
+    </section>
+
+    {/* Confirmation */}
+    <div className="rounded-xl bg-purple-50 p-4">
+      <p className="text-sm leading-relaxed text-purple-900">
+        By confirming, you certify that the details shown
+        above are complete, true and accurate.
+      </p>
+    </div>
+
+    {/* Actions */}
+    <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+      <button
+        type="button"
+        disabled={submitting}
+        onClick={() =>
+          setShowSubmitConfirmation(false)
+        }
+        className="btn-secondary px-5 py-2.5 disabled:opacity-50"
+      >
+        Go Back and Edit
+      </button>
+
+      <button
+        type="button"
+        disabled={submitting}
+        onClick={confirmSubmitApplication}
+        className="btn-primary flex items-center justify-center gap-2 px-6 py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {submitting ? (
+          <>
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+            Submitting...
+          </>
+        ) : (
+          <>
+            <Send size={17} />
+            Confirm & Submit
+          </>
+        )}
+      </button>
+    </div>
+  </div>
+</Modal>
+    </div>
+  )
+}
+function ReviewItem({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-1 break-words text-sm font-semibold text-slate-800">
+        {value === undefined ||
+        value === null ||
+        value === ''
+          ? '—'
+          : String(value)}
+      </p>
     </div>
   )
 }
