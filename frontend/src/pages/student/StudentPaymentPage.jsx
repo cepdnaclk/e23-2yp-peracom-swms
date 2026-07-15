@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
-  Lock, Unlock, Upload, FileText, CheckCircle, XCircle,
+  Lock, Unlock, Upload, FileText, CheckCircle,
   AlertCircle, Download, Eye, ArrowLeft, CreditCard,
   Building, Hash, Phone, RotateCcw, Info, Clock,
   ChevronDown, ChevronUp, User, Calendar, History
@@ -15,63 +15,105 @@ import { format } from 'date-fns'
 
 const ACCOUNT_TYPES = ['Savings', 'Current', 'Fixed Deposit', 'Other']
 
-// ─────────────────────────────────────────────────────────────
-// Approval Progress Bar
-// ─────────────────────────────────────────────────────────────
-function ApprovalProgress({ adminApproved, donorApproved }) {
-  const Step = ({ label, done, index }) => (
-    <div className="flex flex-col items-center gap-1.5">
-      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm transition-all
-        ${done ? 'bg-green-500 text-white shadow-sm' : 'bg-slate-200 text-slate-400'}`}>
-        {done ? <CheckCircle size={16}/> : index}
-      </div>
-      <div className="text-center">
-        <p className={`text-xs font-semibold ${done ? 'text-green-700' : 'text-slate-500'}`}>{label}</p>
-        <p className={`text-xs ${done ? 'text-green-500' : 'text-slate-400'}`}>{done ? 'Approved ✓' : 'Pending…'}</p>
-      </div>
-    </div>
-  )
-  return (
-    <div className="bg-slate-50 rounded-2xl p-6">
-      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5 text-center">Approval Progress</p>
-      <div className="flex items-center justify-center gap-0">
-        <Step label="Admin Approval"   done={adminApproved} index={1}/>
-        <div className={`h-0.5 w-16 sm:w-24 mb-6 mx-2 transition-colors ${adminApproved ? 'bg-green-300' : 'bg-slate-200'}`}/>
-        <Step label="Donor Approval"   done={donorApproved} index={2}/>
-        <div className={`h-0.5 w-16 sm:w-24 mb-6 mx-2 transition-colors ${donorApproved ? 'bg-green-300' : 'bg-slate-200'}`}/>
-        <Step label="Payment Unlocked" done={adminApproved && donorApproved} index={3}/>
-      </div>
-    </div>
-  )
-}
+
 
 // ─────────────────────────────────────────────────────────────
 // Status Flow Timeline
 // ─────────────────────────────────────────────────────────────
 function StatusTimeline({ payment }) {
-  const count = payment?.payment_resubmission_count || 0
-  const status = payment?.payment_details_status
+  const count =
+    payment?.payment_resubmission_count || 0
+
+  const status =
+    payment?.payment_details_status
 
   const steps = [
-    { label: 'Payment Unlocked',          done: true,                          color: 'bg-blue-500' },
-    { label: 'Payment Details Submitted',  done: ['Submitted','Re-Submitted','Pending Verification','Resubmission Required','Verified'].includes(status), color: 'bg-amber-400' },
-    ...(count > 0 ? [
-      { label: `Resubmission Required (×${count})`, done: ['Re-Submitted','Pending Verification','Verified'].includes(status), color: 'bg-red-400' },
-      { label: 'Re-Submitted',             done: ['Pending Verification','Verified'].includes(status), color: 'bg-amber-400' },
-    ] : []),
-    { label: 'Pending Verification',       done: ['Pending Verification','Verified'].includes(status), color: 'bg-blue-400' },
-    { label: 'Verified ✓',                 done: status === 'Verified',          color: 'bg-green-500' },
+    {
+      label: 'Payment Details Requested',
+      done: [
+        'Requested',
+        'Submitted',
+        'Correction Required',
+        'Re-Submitted',
+        'Admin Verified'
+      ].includes(status),
+      color: 'bg-blue-500'
+    },
+    {
+      label: 'Payment Details Submitted',
+      done: [
+        'Submitted',
+        'Correction Required',
+        'Re-Submitted',
+        'Admin Verified'
+      ].includes(status),
+      color: 'bg-amber-400'
+    },
+    ...(count > 0
+      ? [
+          {
+            label: `Correction Requested (×${count})`,
+            done: [
+              'Correction Required',
+              'Re-Submitted',
+              'Admin Verified'
+            ].includes(status),
+            color: 'bg-red-400'
+          },
+          {
+            label: 'Corrected Details Submitted',
+            done: [
+              'Re-Submitted',
+              'Admin Verified'
+            ].includes(status),
+            color: 'bg-amber-400'
+          }
+        ]
+      : []),
+    {
+      label: 'Admin Verified',
+      done: status === 'Admin Verified',
+      color: 'bg-green-500'
+    }
   ]
 
   return (
     <div className="space-y-2">
-      {steps.map((s, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${s.done ? s.color : 'bg-slate-200'}`}/>
-          <span className={`text-xs ${s.done ? 'text-slate-700 font-medium' : 'text-slate-400'}`}>{s.label}</span>
-          {s.done && s.label === 'Verified ✓' && payment?.payment_verified_date && (
-            <span className="text-xs text-slate-400 ml-auto">{format(new Date(payment.payment_verified_date), 'MMM d, yyyy')}</span>
-          )}
+      {steps.map((step, index) => (
+        <div
+          key={index}
+          className="flex items-center gap-3"
+        >
+          <div
+            className={`w-3 h-3 rounded-full flex-shrink-0 ${
+              step.done
+                ? step.color
+                : 'bg-slate-200'
+            }`}
+          />
+
+          <span
+            className={`text-xs ${
+              step.done
+                ? 'text-slate-700 font-medium'
+                : 'text-slate-400'
+            }`}
+          >
+            {step.label}
+          </span>
+
+          {step.done &&
+            step.label === 'Admin Verified' &&
+            payment?.payment_verified_date && (
+              <span className="text-xs text-slate-400 ml-auto">
+                {format(
+                  new Date(
+                    payment.payment_verified_date
+                  ),
+                  'MMM d, yyyy'
+                )}
+              </span>
+            )}
         </div>
       ))}
     </div>
@@ -146,8 +188,6 @@ export default function StudentPaymentPage() {
   const [errors, setErrors]             = useState({})
   const [historyOpen, setHistoryOpen]   = useState(false)
 
-  const [adminApproved, setAdminApproved] = useState(false)
-  const [donorApproved, setDonorApproved] = useState(false)
 
   const [form, setForm] = useState({
     account_holder_name: '',
@@ -158,50 +198,45 @@ export default function StudentPaymentPage() {
     contact_number:      '',
   })
 
-  const load = () => {
+  const load = async () => {
     setLoading(true)
-    Promise.all([
-      api.get(`/applications/${applicationId}`).catch(() => ({ data: null })),
-      api.get(`/payment/${applicationId}`).catch(() => ({ data: null })),
-      api.get(`/applications/${applicationId}/donor-decision`).catch(() => ({ data: null })),
-    ]).then(([appRes, payRes, donorRes]) => {
-      const app   = appRes.data
-      const pay   = payRes.data
-      const donor = donorRes.data
 
-      setAppInfo(app)
-      setPayment(pay)
+    try {
+      const [appRes, payRes] = await Promise.all([
+        api.get(`/applications/${applicationId}`).catch(() => ({ data: null })),
+        api.get(`/payment/${applicationId}`).catch(() => ({ data: null }))
+      ])
 
-      const aApproved = app && [
-        'Approved','Fully Approved','Payment Details Submitted',
-        'Payment Verified','Completed'
-      ].includes(app.status)
-      const dApproved = donor?.donor_decision === 'Approved'
+      const application = appRes.data
+      const paymentDetails = payRes.data
 
-      setAdminApproved(!!aApproved)
-      setDonorApproved(dApproved)
+      setAppInfo(application)
+      setPayment(paymentDetails)
 
-      // Pre-fill form
-      if (pay?.account_holder_name) {
+      if (paymentDetails?.account_holder_name) {
         setForm({
-          account_holder_name: pay.account_holder_name || '',
-          bank_name:           pay.bank_name           || '',
-          branch_name:         pay.branch_name         || '',
-          account_number:      pay.account_number      || '',
-          account_type:        pay.account_type        || '',
-          contact_number:      pay.contact_number      || '',
+          account_holder_name: paymentDetails.account_holder_name || '',
+          bank_name: paymentDetails.bank_name || '',
+          branch_name: paymentDetails.branch_name || '',
+          account_number: paymentDetails.account_number || '',
+          account_type: paymentDetails.account_type || '',
+          contact_number: paymentDetails.contact_number || ''
         })
       }
-    }).finally(() => setLoading(false))
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { load() }, [applicationId])
 
-  const pdStatus      = payment?.payment_details_status || 'Locked'
-  const fullyApproved = adminApproved && donorApproved
-  const isResubmission = pdStatus === 'Resubmission Required'
-  const isEditable    = fullyApproved && ['Unlocked', 'Resubmission Required'].includes(pdStatus)
-  const isReadOnly    = ['Submitted','Re-Submitted','Pending Verification','Verified'].includes(pdStatus)
+  const pdStatus = payment?.payment_details_status || 'Locked'
+
+  const isResubmission = pdStatus === 'Correction Required'
+
+  const isEditable = ['Requested', 'Correction Required'].includes(pdStatus)
+
+  const isReadOnly = ['Submitted', 'Re-Submitted', 'Admin Verified'].includes(pdStatus)
 
   const validate = () => {
     const e = {}
@@ -209,6 +244,7 @@ export default function StudentPaymentPage() {
     if (!form.bank_name.trim())           e.bank_name           = 'Required'
     if (!form.account_number.trim())      e.account_number      = 'Required'
     if (!form.account_type)               e.account_type        = 'Required'
+    if (!payment?.passbook_url && !passbookFile) e.passbook = 'Bank passbook/account proof is required'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -238,21 +274,90 @@ export default function StudentPaymentPage() {
     setErrors(p => ({ ...p, [field]: '' }))
   }
 
+  const handlePassbookChange = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
+    const maxSize = 5 * 1024 * 1024
+
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Only PDF, JPG and PNG files are allowed')
+      event.target.value = ''
+      return
+    }
+
+    if (file.size > maxSize) {
+      toast.error('File size must not exceed 5 MB')
+      event.target.value = ''
+      return
+    }
+
+    setPassbookFile(file)
+    setErrors(previous => ({ ...previous, passbook: '' }))
+  }
+
   const inputClass = (field) =>
     `input-field ${!isEditable ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''} ${errors[field] ? 'border-red-300' : ''}`
 
   // ── Status config
-  const statusConfig = {
-    Locked:                  { icon: Lock,        bg: 'bg-slate-50  border-slate-200',  text: 'text-slate-600',  title: 'Payment Details Locked', desc: 'This section unlocks automatically once both Admin and Donor have approved your application.' },
-    Unlocked:                { icon: Unlock,      bg: 'bg-blue-50   border-blue-200',   text: 'text-blue-700',   title: '🎉 Payment Details Unlocked!', desc: 'Your application has been fully approved. Please complete your bank details below to receive your scholarship funds.' },
-    Submitted:               { icon: Clock,       bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  title: 'Payment Details Submitted', desc: 'Your payment details are awaiting donor verification. You will be notified once reviewed.' },
-    'Re-Submitted':          { icon: Clock,       bg: 'bg-amber-50  border-amber-200',  text: 'text-amber-700',  title: 'Payment Details Re-Submitted', desc: 'Your updated payment details are awaiting donor verification.' },
-    'Pending Verification':  { icon: Clock,       bg: 'bg-blue-50   border-blue-200',   text: 'text-blue-700',   title: 'Under Verification', desc: 'The donor is currently reviewing your payment information.' },
-    Verified:                { icon: CheckCircle, bg: 'bg-green-50  border-green-200',  text: 'text-green-700',  title: '✅ Payment Details Verified!', desc: 'Your bank details have been verified. Scholarship funds will be disbursed shortly.' },
-    'Resubmission Required': { icon: AlertCircle, bg: 'bg-red-50    border-red-200',    text: 'text-red-700',    title: '⚠️ Payment Details Require Correction', desc: 'Your payment details need to be corrected. Please review the donor feedback below and resubmit.' },
-  }
+  const statusInfo = {
+  Locked: {
+    icon: Lock,
+    bg: 'bg-slate-50 border-slate-200',
+    text: 'text-slate-600',
+    title: 'Payment Details Not Requested',
+    desc:
+      'Payment details will become available after the admin reviews your application.'
+  },
 
-  const sc = statusConfig[pdStatus] || statusConfig.Locked
+  Requested: {
+    icon: Unlock,
+    bg: 'bg-blue-50 border-blue-200',
+    text: 'text-blue-700',
+    title: 'Payment Details Requested',
+    desc:
+      'Your application passed the initial admin review. Please submit your bank details.'
+  },
+
+  Submitted: {
+    icon: Clock,
+    bg: 'bg-amber-50 border-amber-200',
+    text: 'text-amber-700',
+    title: 'Payment Details Submitted',
+    desc:
+      'Your payment details are waiting for admin verification.'
+  },
+
+  'Correction Required': {
+    icon: AlertCircle,
+    bg: 'bg-red-50 border-red-200',
+    text: 'text-red-700',
+    title: 'Payment Details Require Correction',
+    desc:
+      'The admin requested corrections. Review the instructions and submit the updated details.'
+  },
+
+  'Re-Submitted': {
+    icon: Clock,
+    bg: 'bg-amber-50 border-amber-200',
+    text: 'text-amber-700',
+    title: 'Corrected Payment Details Submitted',
+    desc:
+      'Your corrected payment details are waiting for admin verification.'
+  },
+
+  'Admin Verified': {
+    icon: CheckCircle,
+    bg: 'bg-green-50 border-green-200',
+    text: 'text-green-700',
+    title: 'Payment Details Verified',
+    desc:
+      'The admin verified your bank details. Your application is ready for donor assignment.'
+  }
+}
+
+  const sc = statusInfo[pdStatus] || statusInfo.Locked
   const StatusIcon = sc.icon
 
   if (loading) return (
@@ -298,7 +403,7 @@ export default function StudentPaymentPage() {
         <div>
           <p className={`font-bold ${sc.text}`}>{sc.title}</p>
           <p className={`text-sm mt-0.5 ${sc.text} opacity-80`}>{sc.desc}</p>
-          {pdStatus === 'Verified' && payment?.payment_verified_date && (
+          {pdStatus === 'Admin Verified' && payment?.payment_verified_date && (
             <p className={`text-xs mt-1 ${sc.text} opacity-60`}>
               Verified on {format(new Date(payment.payment_verified_date), 'MMM d, yyyy · h:mm a')}
             </p>
@@ -311,7 +416,7 @@ export default function StudentPaymentPage() {
         <div className="card border-l-4 border-red-400 p-5 space-y-4">
           <div className="flex items-center gap-2">
             <AlertCircle size={16} className="text-red-500 flex-shrink-0"/>
-            <h2 className="font-bold text-slate-800">Donor Feedback</h2>
+            <h2 className="font-bold text-slate-800">Admin Correction Instructions</h2>
             {payment?.payment_resubmission_count > 0 && (
               <span className="ml-auto text-xs text-slate-400 flex items-center gap-1">
                 <RotateCcw size={11}/> Resubmission #{payment.payment_resubmission_count}
@@ -337,11 +442,11 @@ export default function StudentPaymentPage() {
             </div>
           </div>
 
-          {payment?.donor_payment_comments && (
+          {payment?.admin_payment_comments && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Donor Comments</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1">Admin Comments</p>
               <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-sm text-slate-700 leading-relaxed">
-                {payment.donor_payment_comments}
+                {payment.admin_payment_comments}
               </div>
             </div>
           )}
@@ -351,11 +456,6 @@ export default function StudentPaymentPage() {
             <span>Only your payment details (Step 6) need to be updated. Your application (Steps 1–5) remains locked and unchanged.</span>
           </div>
         </div>
-      )}
-
-      {/* ── Approval Progress (only when locked) ── */}
-      {pdStatus === 'Locked' && (
-        <ApprovalProgress adminApproved={adminApproved} donorApproved={donorApproved}/>
       )}
 
       {/* ── Status Flow Timeline ── */}
@@ -483,6 +583,11 @@ export default function StudentPaymentPage() {
             <p className="text-xs font-semibold text-slate-600 mb-3 flex items-center gap-1.5">
               <FileText size={13}/> Bank Passbook / Account Proof
             </p>
+            {errors.passbook && (
+              <p className="text-xs text-red-500 mb-3 flex items-center gap-1">
+                <AlertCircle size={11}/>{errors.passbook}
+              </p>
+            )}
 
             {/* Existing uploaded passbook */}
             {payment?.passbook_url && (
@@ -516,7 +621,7 @@ export default function StudentPaymentPage() {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
                   ref={fileInputRef}
-                  onChange={e => setPassbookFile(e.target.files[0])}
+                  onChange={handlePassbookChange}
                   className="hidden"
                 />
                 {passbookFile ? (
@@ -572,7 +677,7 @@ export default function StudentPaymentPage() {
         <Link to="/student/applications" className="btn-ghost flex items-center gap-1.5 text-sm">
           <ArrowLeft size={14}/> Back to Applications
         </Link>
-        {pdStatus === 'Verified' && (
+        {pdStatus === 'Admin Verified' && (
           <span className="text-xs text-green-600 font-semibold flex items-center gap-1.5">
             <CheckCircle size={13}/> Completed
           </span>

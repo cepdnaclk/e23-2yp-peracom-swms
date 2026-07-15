@@ -263,7 +263,13 @@ export default function ApplicationDetailPage() {
     try {
       const map = { approve:'approve', reject:'reject', resubmit:'resubmit' }
       await api.post(`/applications/${id}/${map[action]}`, { admin_reason: reason })
-      toast.success(action === 'approve' ? '✅ Application approved!' : action === 'reject' ? '❌ Application rejected' : '↩ Resubmission requested')
+      toast.success(
+  action === 'approve'
+    ? '✅ Application approved. Payment details requested from the student.'
+    : action === 'reject'
+    ? '❌ Application rejected'
+    : '↩ Resubmission requested'
+)
       setDecision(null); setReason('')
       load()
     } catch { toast.error('Action failed') }
@@ -540,7 +546,7 @@ const docScore = Math.round(
           {[
             { label:'Application Submitted', date: app.created_at,  color:'bg-purple-500' },
             { label:`Status: ${app.status}`, date: app.updated_at,  color:
-                app.status==='Approved' ? 'bg-green-500' :
+                app.status==='Awaiting Payment Details' ? 'bg-green-500' :
                 app.status==='Rejected' ? 'bg-red-500' : 'bg-amber-400' },
           ].filter(e => e.date).map(({ label, date, color }) => (
             <div key={label} className="flex items-center gap-3">
@@ -569,10 +575,28 @@ const docScore = Math.round(
                 </div>
               )}
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => handleDecision('approve')}
-                  className="btn-primary flex items-center gap-2 flex-1 sm:flex-none justify-center py-3">
-                  <CheckCircle size={16}/> Approve Application
-                </button>
+                <button
+  onClick={() => handleDecision('approve')}
+  disabled={submitting || verifiedDocs < requiredDocs.length}
+  title={
+    verifiedDocs < requiredDocs.length
+      ? 'Verify all required documents before requesting payment details'
+      : 'Approve application and request student payment details'
+  }
+  className="btn-primary flex items-center gap-2 flex-1 sm:flex-none justify-center py-3 disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {submitting ? (
+    <>
+      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+      Processing...
+    </>
+  ) : (
+    <>
+      <CheckCircle size={16} />
+      Approve & Request Payment Details
+    </>
+  )}
+</button>
                 <button onClick={() => setDecision('reject')}
                   className="btn-danger flex items-center gap-2 flex-1 sm:flex-none justify-center py-3">
                   <XCircle size={16}/> Reject Application
@@ -618,17 +642,24 @@ const docScore = Math.round(
       {/* Already decided */}
       {app.status !== 'Pending' && (
         <div className={`card p-5 border-l-4
-          ${app.status==='Approved'               ? 'border-green-500 bg-green-50/50'  :
+          ${app.status==='Awaiting Payment Details' ? 'border-green-500 bg-green-50/50'  :
             app.status==='Rejected'               ? 'border-red-500   bg-red-50/50'    :
             app.status==='Resubmission Requested' ? 'border-amber-500 bg-amber-50/50'  :
                                                     'border-slate-300'}`}>
           <div className="flex items-center gap-2 mb-1">
-            {app.status==='Approved'               ? <CheckCircle size={16} className="text-green-600"/>  :
+            {app.status==='Awaiting Payment Details' ? <CheckCircle size={16} className="text-green-600"/>  :
              app.status==='Rejected'               ? <XCircle    size={16} className="text-red-600"/>    :
              <RotateCcw  size={16} className="text-amber-600"/>}
             <p className="font-semibold text-slate-800">
-              This application has been <span className="capitalize">{app.status}</span>
-            </p>
+  {app.status === 'Awaiting Payment Details'
+    ? 'Application approved. Waiting for the student to submit payment details.'
+    : (
+      <>
+        This application has been{' '}
+        <span className="capitalize">{app.status}</span>
+      </>
+    )}
+</p>
           </div>
           {app.admin_reason && <p className="text-sm italic text-slate-600 mt-1 ml-6">{app.admin_reason}</p>}
         </div>

@@ -331,7 +331,7 @@ USING (bucket_id = 'welfare-docs');
 
 -- ============================================================
 -- Migration 001 — Application Review Module Updates
--- Run this in Supabase SQL Editor if you already ran schema.sql
+-- 
 -- ============================================================
 
 -- 1. Add extra_data column to applications (stores extended form fields as JSON)
@@ -361,7 +361,7 @@ WHERE table_name = 'applications'
 
 -- ============================================================
 -- Migration 002 — Payment Details Workflow
--- Run in Supabase SQL Editor
+--
 -- ============================================================
 
 -- 1. Payment details table
@@ -491,3 +491,71 @@ SELECT a.id, a.student_id, 'Locked'
 FROM applications a
 WHERE a.status IN ('Approved','Fully Approved')
 ON CONFLICT (application_id) DO NOTHING;
+
+
+-- ============================================================
+-- MIGRATION: SIMPLIFIED SCHOLARSHIP PAYMENT WORKFLOW
+-- 
+-- ============================================================
+
+-- Actual payments made by donors.
+-- This is separate from payment_details:
+-- payment_details stores student bank information.
+-- scholarship_payments stores donor transfer information.
+
+CREATE TABLE IF NOT EXISTS scholarship_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  application_id UUID NOT NULL
+    REFERENCES applications(id)
+    ON DELETE CASCADE,
+
+  donor_id UUID NOT NULL
+    REFERENCES users(id)
+    ON DELETE CASCADE,
+
+  amount NUMERIC(12,2),
+
+  payment_status VARCHAR(30)
+    NOT NULL
+    DEFAULT 'Pending'
+    CHECK (
+      payment_status IN (
+        'Pending',
+        'Processing',
+        'Paid',
+        'On Hold',
+        'Failed'
+      )
+    ),
+
+  transaction_reference VARCHAR(255),
+  payment_date TIMESTAMPTZ,
+  receipt_url TEXT,
+  receipt_file_name VARCHAR(255),
+  donor_comments TEXT,
+  failure_reason TEXT,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+  CONSTRAINT scholarship_payments_application_unique
+    UNIQUE (application_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_scholarship_payments_application
+ON scholarship_payments(application_id);
+
+CREATE INDEX IF NOT EXISTS idx_scholarship_payments_donor
+ON scholarship_payments(donor_id);
+
+CREATE INDEX IF NOT EXISTS idx_scholarship_payments_status
+ON scholarship_payments(payment_status);
+
+ALTER TABLE applications
+ADD COLUMN IF NOT EXISTS assigned_donor_id UUID
+REFERENCES users(id)
+ON DELETE SET NULL;
+
+ALTER TABLE applications
+ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;

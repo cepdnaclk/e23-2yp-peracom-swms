@@ -167,29 +167,104 @@ router.delete('/:id/documents/:docId', authenticate, async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 
-// POST /api/applications/:id/approve  — admin
+// POST /api/applications/:id/approve
+// Admin approves the application review and requests payment details.
 router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
   try {
-    await query(
-      `UPDATE applications SET status = 'Approved', admin_reason = NULL, updated_at = NOW()
-       WHERE id = $1`, [req.params.id])
+    const applicationResult = await query(
+      `SELECT id, student_id, status
+       FROM applications
+       WHERE id = $1`,
+      [req.params.id]
+    )
 
-    // Check if donor already approved → trigger full approval
-    const donorCheck = await query(
-      `SELECT id FROM donor_students WHERE application_id = $1 AND donor_decision = 'Approved'`,
-      [req.params.id])
-    if (donorCheck.rows.length) {
-      const app = await query('SELECT student_id FROM applications WHERE id = $1', [req.params.id])
-      await query(
-        `UPDATE applications SET status = 'Fully Approved', updated_at = NOW() WHERE id = $1`,
-        [req.params.id])
-      await query(
-        `INSERT INTO payment_details (application_id, student_id, payment_details_status)
-         VALUES ($1, $2, 'Unlocked') ON CONFLICT (application_id) DO UPDATE SET payment_details_status = 'Unlocked', updated_at = NOW()`,
-        [req.params.id, app.rows[0]?.student_id]).catch(() => {})
+    if (!applicationResult.rows.length) {
+      return res.status(404).json({
+        message: 'Application not found'
+      })
     }
-    res.json({ message: 'Application approved' })
-  } catch (err) { res.status(500).json({ message: err.message }) }
+
+    const application = applicationResult.rows[0]
+
+    if (application.status !== 'Pending') {
+      return res.status(400).json({
+        message: `Only pending applications can be approved. Current status: ${application.status}`
+      })
+    }
+
+    const requiredDocumentsResult = await query(
+      `SELECT COUNT(*)::INTEGER AS unverified_count
+       FROM application_documents
+       WHERE application_id = $1
+         AND status <> 'Verified'`,
+      [req.params.id]
+    )
+
+    const unverifiedCount =
+      requiredDocumentsResult.rows[0]?.unverified_count ?? 0
+
+    if (unverifiedCount > 0) {
+      return res.status(400).json({
+        message: 'All submitted documents must be verified before requesting payment details'
+      })
+    }
+
+    await query(
+      `UPDATE applications
+       SET
+         status = 'Awaiting Payment Details',
+         admin_reason = NULL,
+         updated_at = NOW()
+       WHERE id = $1`,
+      [req.params.id]
+    )
+
+    await query(
+      `INSERT INTO payment_details (
+         application_id,
+         student_id,
+         payment_details_status,
+         updated_at
+       )
+       VALUES ($1, $2, 'Requested', NOW())
+       ON CONFLICT (application_id)
+       DO UPDATE SET
+         payment_details_status = 'Requested',
+         resubmission_reason = NULL,
+         admin_payment_comments = NULL,
+         updated_at = NOW()`,
+      [req.params.id, application.student_id]
+    )
+
+    await query(
+      `INSERT INTO notifications (
+         user_id,
+         type,
+         title,
+         message,
+         link
+       )
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        application.student_id,
+        'payment_details_requested',
+        'Payment Details Requested',
+        'Your scholarship application has passed the initial admin review. Please submit your bank details.',
+        `/student/payment/${req.params.id}`
+      ]
+    )
+
+    return res.json({
+      message: 'Application approved and payment details requested',
+      status: 'Awaiting Payment Details'
+    })
+  } catch (err) {
+    console.error('Approve application error:', err)
+
+    return res.status(500).json({
+      message: err.message || 'Failed to approve application'
+    })
+  }
 })
 
 // POST /api/applications/:id/reject  — admin
