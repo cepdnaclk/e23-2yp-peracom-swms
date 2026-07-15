@@ -163,7 +163,93 @@ router.post('/applications', authenticate, requireStudent, async (req, res) => {
     res.status(201).json(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
+// ─────────────────────────────────────────────────────────────
+// GET /api/student/applications/:id/payment-progress
+//
+// Returns the actual scholarship-payment progress for one
+// application owned by the logged-in student.
+// ─────────────────────────────────────────────────────────────
+router.get(
+  '/applications/:id/payment-progress',
+  authenticate,
+  requireStudent,
+  async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT
+           a.id AS application_id,
+           a.status AS application_status,
+           a.assigned_donor_id,
+           a.assigned_at,
 
+           sp.id AS scholarship_payment_id,
+           COALESCE(
+             sp.payment_status,
+             CASE
+               WHEN a.status = 'Completed'
+                 THEN 'Paid'
+               WHEN a.status = 'Payment Processing'
+                 THEN 'Processing'
+               WHEN a.status = 'Assigned to Donor'
+                 THEN 'Pending'
+               ELSE 'Not Started'
+             END
+           ) AS payment_status,
+
+           sp.amount,
+           sp.transaction_reference,
+           sp.payment_date,
+           sp.receipt_url,
+           sp.receipt_file_name,
+           sp.donor_comments,
+           sp.failure_reason,
+           sp.created_at,
+           sp.updated_at,
+
+           donor_user.name AS donor_name,
+           donor_user.organization AS donor_organization
+
+         FROM applications a
+
+         LEFT JOIN scholarship_payments sp
+           ON sp.application_id = a.id
+
+         LEFT JOIN users donor_user
+           ON donor_user.id = COALESCE(
+             sp.donor_id,
+             a.assigned_donor_id
+           )
+
+         WHERE a.id = $1
+           AND a.student_id = $2`,
+        [
+          req.params.id,
+          req.user.id,
+        ]
+      )
+
+      if (!result.rows.length) {
+        return res.status(404).json({
+          message:
+            'Application not found',
+        })
+      }
+
+      return res.json(result.rows[0])
+    } catch (err) {
+      console.error(
+        'Student payment-progress error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to load payment progress',
+      })
+    }
+  }
+)
 // GET /api/student/progress-reports
 router.get('/progress-reports', authenticate, requireStudent, async (req, res) => {
   try {

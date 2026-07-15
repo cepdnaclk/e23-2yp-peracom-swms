@@ -344,66 +344,402 @@ router.delete('/:id', authenticate, requireAdmin, async (req, res) => {
     res.json({ message: 'Deleted' })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
-
+// ─────────────────────────────────────────────────────────────
 // GET /api/scholarships/:id/approved-students
-router.get('/:id/approved-students', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const result = await query(
-      `SELECT a.id AS application_id, u.id AS student_id, u.name AS student_name,
-              u.registration_number, u.batch, u.department,
-              a.gpa, ds.id AS assignment_id,
-              CASE WHEN ds.id IS NOT NULL THEN 'Assigned' ELSE 'Not Assigned' END AS assignment_status,
-              COALESCE(ds.donor_decision, 'Not Reviewed') AS donor_decision
-       FROM applications a
-       JOIN users u ON a.student_id = u.id
-       LEFT JOIN donor_students ds ON ds.application_id = a.id AND ds.scholarship_id = $1
-       WHERE a.scholarship_id = $1 AND a.status = 'Approved'
-       ORDER BY u.name`, [req.params.id])
-    res.json(result.rows)
-  } catch (err) { res.status(500).json({ message: err.message }) }
-})
+//
+// Returns students whose application and bank details were
+// verified by admin. These students are ready for assignment.
+// ─────────────────────────────────────────────────────────────
+router.get(
+  '/:id/approved-students',
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT
+           a.id AS application_id,
+           a.status AS application_status,
 
-// GET /api/scholarships/:id/final-students
-router.get('/:id/final-students', authenticate, requireAdmin, async (req, res) => {
-  try {
-    const result = await query(
-      `SELECT ds.*, u.name AS student_name, u.registration_number,
-              du.name AS donor_name, ds.updated_at AS approved_at
-       FROM donor_students ds
-       JOIN applications a ON ds.application_id = a.id
-       JOIN users u ON a.student_id = u.id
-       LEFT JOIN users du ON ds.donor_id = du.id
-       WHERE ds.scholarship_id = $1 AND ds.donor_decision = 'Approved'
-       ORDER BY ds.updated_at DESC`, [req.params.id])
-    res.json(result.rows)
-  } catch (err) { res.status(500).json({ message: err.message }) }
-})
+           u.id AS student_id,
+           u.name AS student_name,
+           u.registration_number,
+           u.batch,
+           u.department,
 
-// POST /api/scholarships/:id/assign
-router.post('/:id/assign', authenticate, requireAdmin, async (req, res) => {
-  const client = await (await import('../config/db.js')).getClient()
-  try {
-    const { student_ids } = req.body
-    if (!Array.isArray(student_ids) || !student_ids.length) return res.status(400).json({ message: 'student_ids required' })
-    await client.query('BEGIN')
-    const scholarship = await client.query('SELECT donor_id FROM scholarships WHERE id = $1', [req.params.id])
-    const donorId = scholarship.rows[0]?.donor_id
-    for (const sid of student_ids) {
-      const appResult = await client.query(
-        'SELECT id FROM applications WHERE student_id = $1 AND scholarship_id = $2 AND status = $3',
-        [sid, req.params.id, 'Approved'])
-      if (!appResult.rows.length) continue
-      const appId = appResult.rows[0].id
-      await client.query(
-        `INSERT INTO donor_students (scholarship_id, application_id, donor_id, donor_decision)
-         VALUES ($1, $2, $3, 'Pending')
-         ON CONFLICT (scholarship_id, application_id) DO NOTHING`,
-        [req.params.id, appId, donorId])
+           a.gpa,
+
+           pd.payment_details_status,
+
+           ds.id AS assignment_id,
+           ds.donor_id,
+           ds.created_at AS assigned_at,
+
+           CASE
+             WHEN ds.id IS NOT NULL
+               THEN 'Assigned'
+             ELSE 'Not Assigned'
+           END AS assignment_status
+
+         FROM applications a
+
+         JOIN users u
+           ON u.id = a.student_id
+
+         JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         LEFT JOIN donor_students ds
+           ON ds.application_id = a.id
+          AND ds.scholarship_id = $1
+
+         WHERE a.scholarship_id = $1
+           AND (
+             a.status = 'Payment Details Verified'
+             OR a.status = 'Assigned to Donor'
+           )
+           AND pd.payment_details_status = 'Admin Verified'
+
+         ORDER BY
+           CASE
+             WHEN ds.id IS NULL THEN 0
+             ELSE 1
+           END,
+           u.name`,
+        [req.params.id]
+      )
+
+      return res.json(result.rows)
+    } catch (err) {
+      console.error(
+        'Load assignable students error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to load students ready for assignment',
+      })
     }
-    await client.query('COMMIT')
-    res.json({ message: 'Students assigned' })
-  } catch (err) { await client.query('ROLLBACK'); res.status(500).json({ message: err.message }) }
-  finally { client.release() }
-})
+  }
+)
+
+
+// ─────────────────────────────────────────────────────────────
+// GET /api/scholarships/:id/final-students
+//
+// Returns all students already assigned to the scholarship donor.
+// Donor approval is no longer required.
+// ─────────────────────────────────────────────────────────────
+router.get(
+  '/:id/final-students',
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT
+           ds.id,
+           ds.scholarship_id,
+           ds.application_id,
+           ds.donor_id,
+           ds.created_at AS assigned_at,
+           ds.updated_at,
+
+           a.status AS application_status,
+
+           u.id AS student_id,
+           u.name AS student_name,
+           u.registration_number,
+           u.batch,
+
+           donor_user.name AS donor_name,
+
+           pd.payment_details_status
+
+         FROM donor_students ds
+
+         JOIN applications a
+           ON a.id = ds.application_id
+
+         JOIN users u
+           ON u.id = a.student_id
+
+         LEFT JOIN users donor_user
+           ON donor_user.id = ds.donor_id
+
+         LEFT JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         WHERE ds.scholarship_id = $1
+
+         ORDER BY ds.created_at DESC`,
+        [req.params.id]
+      )
+
+      return res.json(result.rows)
+    } catch (err) {
+      console.error(
+        'Load assigned students error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to load assigned students',
+      })
+    }
+  }
+)
+
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/scholarships/:id/assign
+//
+// Admin assigns payment-verified students directly to the donor.
+// No second donor approval is required.
+// ─────────────────────────────────────────────────────────────
+router.post(
+  '/:id/assign',
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    const client =
+      await (await import('../config/db.js')).getClient()
+
+    try {
+      const { student_ids } = req.body
+
+      if (
+        !Array.isArray(student_ids) ||
+        student_ids.length === 0
+      ) {
+        return res.status(400).json({
+          message:
+            'Select at least one student for assignment',
+        })
+      }
+
+      await client.query('BEGIN')
+
+      const scholarshipResult = await client.query(
+        `SELECT
+           id,
+           donor_id,
+           title
+         FROM scholarships
+         WHERE id = $1`,
+        [req.params.id]
+      )
+
+      if (!scholarshipResult.rows.length) {
+        await client.query('ROLLBACK')
+
+        return res.status(404).json({
+          message: 'Scholarship not found',
+        })
+      }
+
+      const scholarship =
+        scholarshipResult.rows[0]
+
+      if (!scholarship.donor_id) {
+        await client.query('ROLLBACK')
+
+        return res.status(400).json({
+          message:
+            'This scholarship does not have an assigned donor',
+        })
+      }
+
+      const assignedStudents = []
+      const skippedStudents = []
+
+      for (const studentId of student_ids) {
+        const applicationResult = await client.query(
+          `SELECT
+             a.id AS application_id,
+             a.student_id,
+             a.status,
+             pd.payment_details_status
+
+           FROM applications a
+
+           JOIN payment_details pd
+             ON pd.application_id = a.id
+
+           WHERE a.student_id = $1
+             AND a.scholarship_id = $2`,
+          [
+            studentId,
+            req.params.id,
+          ]
+        )
+
+        if (!applicationResult.rows.length) {
+          skippedStudents.push({
+            student_id: studentId,
+            reason: 'Application not found',
+          })
+          continue
+        }
+
+        const application =
+          applicationResult.rows[0]
+
+        if (
+          application.status !==
+            'Payment Details Verified' ||
+          application.payment_details_status !==
+            'Admin Verified'
+        ) {
+          skippedStudents.push({
+            student_id: studentId,
+            reason:
+              'Application or payment details are not verified',
+          })
+          continue
+        }
+
+        const existingAssignment =
+          await client.query(
+            `SELECT id
+             FROM donor_students
+             WHERE scholarship_id = $1
+               AND application_id = $2`,
+            [
+              req.params.id,
+              application.application_id,
+            ]
+          )
+
+        if (existingAssignment.rows.length) {
+          skippedStudents.push({
+            student_id: studentId,
+            reason: 'Student already assigned',
+          })
+          continue
+        }
+
+        await client.query(
+          `INSERT INTO donor_students (
+             scholarship_id,
+             application_id,
+             donor_id,
+             donor_decision,
+             created_at,
+             updated_at
+           )
+           VALUES (
+             $1,
+             $2,
+             $3,
+             'Approved',
+             NOW(),
+             NOW()
+           )`,
+          [
+            req.params.id,
+            application.application_id,
+            scholarship.donor_id,
+          ]
+        )
+
+        await client.query(
+          `UPDATE applications
+           SET
+             status = 'Assigned to Donor',
+             donor_assigned = TRUE,
+             assigned_donor_id = $1,
+             assigned_at = NOW(),
+             updated_at = NOW()
+           WHERE id = $2`,
+          [
+            scholarship.donor_id,
+            application.application_id,
+          ]
+        )
+
+        await client.query(
+          `INSERT INTO scholarship_payments (
+             application_id,
+             donor_id,
+             payment_status,
+             created_at,
+             updated_at
+           )
+           VALUES (
+             $1,
+             $2,
+             'Pending',
+             NOW(),
+             NOW()
+           )
+           ON CONFLICT (application_id)
+           DO UPDATE SET
+             donor_id = EXCLUDED.donor_id,
+             updated_at = NOW()`,
+          [
+            application.application_id,
+            scholarship.donor_id,
+          ]
+        )
+
+        await client.query(
+          `INSERT INTO notifications (
+             user_id,
+             type,
+             title,
+             message,
+             link
+           )
+           VALUES (
+             $1,
+             'assigned_to_donor',
+             'Assigned to Scholarship Donor',
+             $2,
+             '/student/applications'
+           )`,
+          [
+            application.student_id,
+            `Your application for ${scholarship.title} has been assigned to the scholarship donor.`,
+          ]
+        )
+
+        assignedStudents.push(studentId)
+      }
+
+      await client.query('COMMIT')
+
+      return res.json({
+        message:
+          `${assignedStudents.length} student(s) assigned successfully`,
+        assigned_count:
+          assignedStudents.length,
+        skipped_count:
+          skippedStudents.length,
+        skipped_students:
+          skippedStudents,
+      })
+    } catch (err) {
+      await client.query('ROLLBACK')
+
+      console.error(
+        'Assign students error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to assign students',
+      })
+    } finally {
+      client.release()
+    }
+  }
+)
 
 export default router

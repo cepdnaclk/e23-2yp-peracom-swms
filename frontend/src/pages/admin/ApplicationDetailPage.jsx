@@ -5,7 +5,7 @@ import {
   User, BookOpen, DollarSign, FileText, Users, GraduationCap,
   MapPin, Phone, Mail, CreditCard, Clock, Shield, TrendingUp,
   ChevronDown, ChevronUp, AlertCircle, Building, Calendar,
-  Home, Hash, Briefcase, Star, Info
+  Home, Hash, Briefcase, Star, Send,Info
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../../components/common/StatusBadge'
@@ -242,17 +242,51 @@ export default function ApplicationDetailPage() {
   const [decision, setDecision] = useState(null)
   const [reason, setReason]     = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [payment, setPayment] = useState(null)
+const [paymentLoading, setPaymentLoading] = useState(false)
+
+const [paymentAction, setPaymentAction] = useState(null)
+const [paymentReason, setPaymentReason] = useState('')
+const [paymentComments, setPaymentComments] = useState('')
+const [paymentSubmitting, setPaymentSubmitting] = useState(false)
 
   const load = () => {
-    Promise.all([
-      api.get(`/applications/${id}`),
-      api.get(`/applications/${id}/documents`).catch(() => ({ data: [] })),
-    ]).then(([a, d]) => {
-      setApp(a.data)
-      setDocs(d.data)
-    }).catch(() => toast.error('Application not found'))
-    .finally(() => setLoading(false))
-  }
+  setLoading(true)
+  setPaymentLoading(true)
+
+  Promise.all([
+    api.get(`/applications/${id}`),
+
+    api
+      .get(`/applications/${id}/documents`)
+      .catch(() => ({ data: [] })),
+
+    api
+      .get(`/payment/${id}`)
+      .catch(() => ({
+        data: {
+          application_id: id,
+          payment_details_status: 'Locked',
+        },
+      })),
+  ])
+    .then(([applicationResponse, documentResponse, paymentResponse]) => {
+      setApp(applicationResponse.data)
+      setDocs(documentResponse.data)
+      setPayment(paymentResponse.data)
+    })
+    .catch((error) => {
+      console.error('Application load error:', error)
+      toast.error(
+        error?.response?.data?.message ||
+          'Application not found'
+      )
+    })
+    .finally(() => {
+      setLoading(false)
+      setPaymentLoading(false)
+    })
+}
   useEffect(() => { load() }, [id])
 
   const handleDecision = async (action) => {
@@ -272,7 +306,14 @@ export default function ApplicationDetailPage() {
 )
       setDecision(null); setReason('')
       load()
-    } catch { toast.error('Action failed') }
+      } catch (error) {
+  console.error(error)
+
+  toast.error(
+    error?.response?.data?.message ||
+    'Action failed'
+  )
+}
     finally { setSubmitting(false) }
   }
 
@@ -281,6 +322,69 @@ export default function ApplicationDetailPage() {
     toast.success('Document verified')
     load()
   }
+  const handleVerifyPayment = async () => {
+  setPaymentSubmitting(true)
+
+  try {
+    await api.post(`/payment/${id}/verify`, {
+      admin_payment_comments: paymentComments.trim(),
+    })
+
+    toast.success(
+      'Payment details verified successfully'
+    )
+
+    setPaymentAction(null)
+    setPaymentReason('')
+    setPaymentComments('')
+
+    load()
+  } catch (error) {
+    console.error('Payment verification error:', error)
+
+    toast.error(
+      error?.response?.data?.message ||
+        'Failed to verify payment details'
+    )
+  } finally {
+    setPaymentSubmitting(false)
+  }
+}
+
+const handleRequestPaymentCorrection = async () => {
+  if (!paymentReason.trim()) {
+    toast.error('Please provide correction instructions')
+    return
+  }
+
+  setPaymentSubmitting(true)
+
+  try {
+    await api.post(`/payment/${id}/resubmit`, {
+      resubmission_reason: paymentReason.trim(),
+      admin_payment_comments: paymentComments.trim(),
+    })
+
+    toast.success(
+      'Payment-detail correction requested'
+    )
+
+    setPaymentAction(null)
+    setPaymentReason('')
+    setPaymentComments('')
+
+    load()
+  } catch (error) {
+    console.error('Payment correction error:', error)
+
+    toast.error(
+      error?.response?.data?.message ||
+        'Failed to request payment correction'
+    )
+  } finally {
+    setPaymentSubmitting(false)
+  }
+}
 
   if (loading) return <div className="p-8 text-center text-slate-400">Loading application...</div>
   if (!app)    return <div className="p-8 text-center text-slate-400">Application not found.</div>
@@ -323,6 +427,29 @@ const missingDocs = requiredDocs.filter(documentName =>
 const docScore = Math.round(
   (verifiedDocs / requiredDocs.length) * 100
 )
+const paymentStatus =
+  payment?.payment_details_status || 'Locked'
+
+const paymentCanBeReviewed =
+  ['Submitted', 'Re-Submitted'].includes(paymentStatus)
+
+const paymentIsVerified =
+  paymentStatus === 'Admin Verified'
+
+const paymentNeedsCorrection =
+  paymentStatus === 'Correction Required'
+
+const maskAccountNumber = accountNumber => {
+  if (!accountNumber) return '—'
+
+  const text = String(accountNumber)
+
+  if (text.length <= 4) {
+    return text
+  }
+
+  return `${'•'.repeat(text.length - 4)}${text.slice(-4)}`
+}
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -539,7 +666,420 @@ const docScore = Math.round(
           </table>
         </div>
       </Section>
+{/* ── 6. Student Payment Details ── */}
+{paymentStatus !== 'Locked' && (
+  <Section
+    title="Student Payment Details"
+    icon={CreditCard}
+    color={
+      paymentIsVerified
+        ? 'green'
+        : paymentNeedsCorrection
+        ? 'red'
+        : 'blue'
+    }
+    badge={paymentStatus}
+  >
+    {paymentLoading ? (
+      <div className="py-8 flex items-center justify-center">
+        <div className="w-7 h-7 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    ) : (
+      <div className="space-y-5">
+        <div
+          className={`rounded-xl border px-4 py-3 flex items-start gap-2 text-sm ${
+            paymentIsVerified
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : paymentNeedsCorrection
+              ? 'bg-red-50 border-red-200 text-red-700'
+              : paymentCanBeReviewed
+              ? 'bg-amber-50 border-amber-200 text-amber-700'
+              : 'bg-blue-50 border-blue-200 text-blue-700'
+          }`}
+        >
+          {paymentIsVerified ? (
+            <CheckCircle
+              size={16}
+              className="mt-0.5 flex-shrink-0"
+            />
+          ) : paymentNeedsCorrection ? (
+            <AlertCircle
+              size={16}
+              className="mt-0.5 flex-shrink-0"
+            />
+          ) : (
+            <Clock
+              size={16}
+              className="mt-0.5 flex-shrink-0"
+            />
+          )}
 
+          <div>
+            <p className="font-semibold">
+              {paymentIsVerified
+                ? 'Payment details verified'
+                : paymentNeedsCorrection
+                ? 'Correction requested'
+                : paymentCanBeReviewed
+                ? 'Waiting for admin review'
+                : paymentStatus}
+            </p>
+
+            <p className="text-xs mt-0.5 opacity-80">
+              {paymentIsVerified
+                ? 'These bank details were verified and the student is ready for donor assignment.'
+                : paymentNeedsCorrection
+                ? 'The student can edit and resubmit the requested payment information.'
+                : paymentCanBeReviewed
+                ? 'Review the bank details and passbook before verifying.'
+                : 'The student payment information is being processed.'}
+            </p>
+          </div>
+        </div>
+
+        <InfoGrid>
+          <InfoItem
+            label="Account Holder Name"
+            value={payment?.account_holder_name}
+            icon={User}
+          />
+
+          <InfoItem
+            label="Bank Name"
+            value={payment?.bank_name}
+            icon={Building}
+          />
+
+          <InfoItem
+            label="Branch Name"
+            value={payment?.branch_name}
+            icon={Building}
+          />
+
+          <InfoItem
+            label="Account Number"
+            value={maskAccountNumber(
+              payment?.account_number
+            )}
+            icon={Hash}
+            mono
+          />
+
+          <InfoItem
+            label="Account Type"
+            value={payment?.account_type}
+            icon={CreditCard}
+          />
+
+          <InfoItem
+            label="Contact Number"
+            value={payment?.contact_number}
+            icon={Phone}
+          />
+
+          <InfoItem
+            label="Submitted On"
+            value={
+              payment?.updated_at
+                ? format(
+                    new Date(payment.updated_at),
+                    'MMM d, yyyy · h:mm a'
+                  )
+                : null
+            }
+            icon={Calendar}
+          />
+
+          <InfoItem
+            label="Submission Status"
+            value={paymentStatus}
+            icon={Clock}
+            highlight={
+              paymentIsVerified
+                ? 'green'
+                : paymentNeedsCorrection
+                ? 'red'
+                : 'amber'
+            }
+          />
+        </InfoGrid>
+
+        {payment?.passbook_url ? (
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-xs font-semibold text-slate-500 mb-2">
+              Bank Passbook / Account Proof
+            </p>
+
+            <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+              <FileText
+                size={16}
+                className="text-purple-600 flex-shrink-0"
+              />
+
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-slate-700 truncate">
+                  {payment.passbook_file_name ||
+                    'Bank account proof'}
+                </p>
+
+                <p className="text-xs text-slate-400">
+                  Review this file before verifying
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  viewDocument(payment.passbook_url)
+                }
+                className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-800 font-semibold"
+              >
+                <Eye size={13} />
+                View
+              </button>
+
+              <a
+                href={payment.passbook_url}
+                download={payment.passbook_file_name}
+                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
+              >
+                <Download size={13} />
+                Download
+              </a>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+            <AlertCircle size={15} />
+            No passbook or account-proof document was uploaded.
+          </div>
+        )}
+
+        {payment?.resubmission_reason && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-red-700 mb-1">
+              Previous correction reason
+            </p>
+
+            <p className="text-sm text-red-700">
+              {payment.resubmission_reason}
+            </p>
+          </div>
+        )}
+
+        {payment?.admin_payment_comments && (
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <p className="text-xs font-semibold text-slate-500 mb-1">
+              Admin comments
+            </p>
+
+            <p className="text-sm text-slate-700">
+              {payment.admin_payment_comments}
+            </p>
+          </div>
+        )}
+
+        {paymentIsVerified && (
+          <div className="grid sm:grid-cols-2 gap-3 border-t border-slate-100 pt-4">
+            <InfoItem
+              label="Verified By"
+              value={payment?.verified_by_name}
+              icon={Shield}
+              highlight="green"
+            />
+
+            <InfoItem
+              label="Verified Date"
+              value={
+                payment?.payment_verified_date
+                  ? format(
+                      new Date(
+                        payment.payment_verified_date
+                      ),
+                      'MMM d, yyyy · h:mm a'
+                    )
+                  : null
+              }
+              icon={Calendar}
+              highlight="green"
+            />
+          </div>
+        )}
+
+        {paymentCanBeReviewed && !paymentAction && (
+          <div className="border-t border-slate-100 pt-5">
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setPaymentAction('verify')
+                }
+                className="btn-primary flex items-center justify-center gap-2 flex-1 sm:flex-none py-3"
+              >
+                <CheckCircle size={16} />
+                Verify Payment Details
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setPaymentAction('correction')
+                }
+                className="bg-amber-100 text-amber-700 font-semibold px-6 py-3 rounded-xl hover:bg-amber-200 transition-colors flex items-center justify-center gap-2 flex-1 sm:flex-none"
+              >
+                <RotateCcw size={16} />
+                Request Correction
+              </button>
+            </div>
+          </div>
+        )}
+
+        {paymentAction === 'verify' && (
+          <div className="border-t border-slate-100 pt-5 space-y-4">
+            <div className="flex items-center gap-2 text-green-700 font-semibold">
+              <CheckCircle size={16} />
+              Confirm Payment-Detail Verification
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Admin comments (optional)
+              </label>
+
+              <textarea
+                value={paymentComments}
+                onChange={event =>
+                  setPaymentComments(event.target.value)
+                }
+                rows={3}
+                placeholder="Add an optional verification note..."
+                className="input-field resize-none"
+              />
+            </div>
+
+            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-xs text-green-700">
+              Confirm that the account-holder name, bank
+              information and uploaded proof are correct.
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={handleVerifyPayment}
+                disabled={paymentSubmitting}
+                className="bg-green-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {paymentSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle size={15} />
+                    Confirm Verification
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentAction(null)
+                  setPaymentComments('')
+                }}
+                disabled={paymentSubmitting}
+                className="btn-ghost"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
+        {paymentAction === 'correction' && (
+          <div className="border-t border-slate-100 pt-5 space-y-4">
+            <div className="flex items-center gap-2 text-amber-700 font-semibold">
+              <RotateCcw size={16} />
+              Request Payment-Detail Correction
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Correction instructions *
+              </label>
+
+              <textarea
+                value={paymentReason}
+                onChange={event =>
+                  setPaymentReason(event.target.value)
+                }
+                rows={4}
+                placeholder="Clearly explain what the student must correct..."
+                className="input-field resize-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                Additional admin comments
+              </label>
+
+              <textarea
+                value={paymentComments}
+                onChange={event =>
+                  setPaymentComments(event.target.value)
+                }
+                rows={3}
+                placeholder="Optional additional information..."
+                className="input-field resize-none"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={
+                  handleRequestPaymentCorrection
+                }
+                disabled={
+                  paymentSubmitting ||
+                  !paymentReason.trim()
+                }
+                className="bg-amber-500 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {paymentSubmitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send size={15} />
+                    Send Correction Request
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPaymentAction(null)
+                  setPaymentReason('')
+                  setPaymentComments('')
+                }}
+                disabled={paymentSubmitting}
+                className="btn-ghost"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    )}
+  </Section>
+)}
       {/* ── 6. Timeline ── */}
       <Section title="Application Timeline" icon={Clock} color="slate" collapsible defaultOpen={false}>
         <div className="space-y-3">
@@ -640,30 +1180,72 @@ const docScore = Math.round(
       )}
 
       {/* Already decided */}
-      {app.status !== 'Pending' && (
-        <div className={`card p-5 border-l-4
-          ${app.status==='Awaiting Payment Details' ? 'border-green-500 bg-green-50/50'  :
-            app.status==='Rejected'               ? 'border-red-500   bg-red-50/50'    :
-            app.status==='Resubmission Requested' ? 'border-amber-500 bg-amber-50/50'  :
-                                                    'border-slate-300'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            {app.status==='Awaiting Payment Details' ? <CheckCircle size={16} className="text-green-600"/>  :
-             app.status==='Rejected'               ? <XCircle    size={16} className="text-red-600"/>    :
-             <RotateCcw  size={16} className="text-amber-600"/>}
-            <p className="font-semibold text-slate-800">
-  {app.status === 'Awaiting Payment Details'
-    ? 'Application approved. Waiting for the student to submit payment details.'
-    : (
-      <>
-        This application has been{' '}
-        <span className="capitalize">{app.status}</span>
-      </>
-    )}
-</p>
-          </div>
-          {app.admin_reason && <p className="text-sm italic text-slate-600 mt-1 ml-6">{app.admin_reason}</p>}
-        </div>
+      {/* Current workflow status */}
+{app.status !== 'Pending' && (
+  <div
+    className={`card p-5 border-l-4 ${
+      [
+        'Awaiting Payment Details',
+        'Payment Details Submitted',
+        'Payment Details Verified',
+        'Assigned to Donor',
+        'Payment Processing',
+        'Completed',
+      ].includes(app.status)
+        ? 'border-green-500 bg-green-50/50'
+        : app.status === 'Rejected'
+        ? 'border-red-500 bg-red-50/50'
+        : app.status === 'Resubmission Requested' ||
+          app.status === 'Payment Correction Required'
+        ? 'border-amber-500 bg-amber-50/50'
+        : 'border-slate-300'
+    }`}
+  >
+    <div className="flex items-center gap-2 mb-1">
+      {[
+        'Awaiting Payment Details',
+        'Payment Details Submitted',
+        'Payment Details Verified',
+        'Assigned to Donor',
+        'Payment Processing',
+        'Completed',
+      ].includes(app.status) ? (
+        <CheckCircle
+          size={16}
+          className="text-green-600"
+        />
+      ) : app.status === 'Rejected' ? (
+        <XCircle
+          size={16}
+          className="text-red-600"
+        />
+      ) : (
+        <RotateCcw
+          size={16}
+          className="text-amber-600"
+        />
       )}
+
+      <p className="font-semibold text-slate-800">
+        {app.status === 'Awaiting Payment Details'
+          ? 'Application approved. Waiting for the student to submit payment details.'
+          : app.status === 'Payment Details Submitted'
+          ? 'The student submitted payment details. Admin review is required.'
+          : app.status === 'Payment Correction Required'
+          ? 'Payment-detail correction was requested from the student.'
+          : app.status === 'Payment Details Verified'
+          ? 'Payment details are verified. The student is ready for donor assignment.'
+          : `Current status: ${app.status}`}
+      </p>
+    </div>
+
+    {app.admin_reason && (
+      <p className="text-sm italic text-slate-600 mt-1 ml-6">
+        {app.admin_reason}
+      </p>
+    )}
+  </div>
+)}
     </div>
   )
 }

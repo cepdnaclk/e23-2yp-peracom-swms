@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  FileText, AlertCircle, Eye, Download, X, User, DollarSign,
-  Users, GraduationCap, MapPin, Phone, Mail, CreditCard, Clock,
-  Shield, Building, Calendar, Home, Hash, Briefcase, Star, Info,
-  CheckCircle, XCircle
+  FileText,
+  AlertCircle,
+  Eye,
+  Download,
+  X,
+  User,
+  DollarSign,
+  Users,
+  GraduationCap,
+  CreditCard,
+  Clock,
+  CheckCircle,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../../components/common/StatusBadge'
@@ -12,33 +20,102 @@ import { viewDocument } from '../../utils/viewDocument'
 import api from '../../services/api'
 import { format } from 'date-fns'
 
-const TABS = ['All', 'Pending', 'Approved', 'Awarded', 'Rejected', 'Resubmission Requested']
 
+const TABS = [
+  'All',
+  'Pending',
+  'Under Admin Review',
+  'Awaiting Payment Details',
+  'Payment Details Submitted',
+  'Payment Correction Required',
+  'Payment Details Verified',
+  'Assigned to Donor',
+  'Payment Processing',
+  'Completed',
+  'Rejected',
+  'Resubmission Requested',
+]
 const REQUIRED_DOCS = [
   'NIC Copy',
   'Academic Transcript',
-  'Income Certificate',
-  'Recommendation Letter',
+  'Faculty Acceptance Letter',
+  'Student Request Letter',
+  'University ID Copy',
 ]
 
 // ── Progress bar
 function ProgressBar({ status }) {
   const config = {
-    Pending: { width: '25%', color: 'bg-amber-400' },
-    'Under Review': { width: '40%', color: 'bg-blue-400' },
-    'Resubmission Requested': { width: '50%', color: 'bg-orange-400' },
-    Approved: { width: '65%', color: 'bg-green-400' },
-    'Fully Approved': { width: '75%', color: 'bg-green-500' },
-    'Payment Details Submitted': { width: '85%', color: 'bg-purple-400' },
-    'Resubmission Required': { width: '80%', color: 'bg-red-400' },
-    'Payment Verified': { width: '95%', color: 'bg-green-500' },
-    Rejected: { width: '100%', color: 'bg-red-400' },
-    Completed: { width: '100%', color: 'bg-green-600' },
+    Pending: {
+      width: '15%',
+      color: 'bg-amber-400',
+    },
+
+    'Under Admin Review': {
+      width: '25%',
+      color: 'bg-blue-400',
+    },
+
+    'Resubmission Requested': {
+      width: '25%',
+      color: 'bg-orange-400',
+    },
+
+    'Awaiting Payment Details': {
+      width: '40%',
+      color: 'bg-purple-400',
+    },
+
+    'Payment Details Submitted': {
+      width: '55%',
+      color: 'bg-blue-500',
+    },
+
+    'Payment Correction Required': {
+      width: '50%',
+      color: 'bg-red-400',
+    },
+
+    'Payment Details Verified': {
+      width: '70%',
+      color: 'bg-green-500',
+    },
+
+    'Assigned to Donor': {
+      width: '82%',
+      color: 'bg-purple-500',
+    },
+
+    'Payment Processing': {
+      width: '92%',
+      color: 'bg-blue-600',
+    },
+
+    Completed: {
+      width: '100%',
+      color: 'bg-green-600',
+    },
+
+    Rejected: {
+      width: '100%',
+      color: 'bg-red-500',
+    },
   }
-  const c = config[status] || { width: '10%', color: 'bg-slate-300' }
+
+  const current =
+    config[status] || {
+      width: '10%',
+      color: 'bg-slate-300',
+    }
+
   return (
     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${c.color}`} style={{ width: c.width }} />
+      <div
+        className={`h-full rounded-full transition-all ${current.color}`}
+        style={{
+          width: current.width,
+        }}
+      />
     </div>
   )
 }
@@ -51,9 +128,28 @@ export default function MyApplications() {
   const [selectedApp, setSelectedApp] = useState(null)
 
   const loadApps = () => {
-    api.get('/student/applications')
-      .then(r => setApps(r.data))
-      .catch(() => { })
+    setLoading(true)
+
+    api
+      .get('/student/applications')
+      .then(response => {
+        setApps(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        )
+      })
+      .catch(error => {
+        console.error(
+          'Load student applications error:',
+          error
+        )
+
+        toast.error(
+          error?.response?.data?.message ||
+            'Failed to load applications'
+        )
+      })
       .finally(() => setLoading(false))
   }
   useEffect(() => { loadApps() }, [])
@@ -135,34 +231,87 @@ export default function MyApplications() {
                       </div>
                     )}
 
-                    {/* Payment CTA — shown when Fully Approved or Resubmission Required */}
-                    {['Fully Approved', 'Resubmission Required'].includes(app.status) && (
-                      <Link to={`/student/payment/${app.id}`}
-                        className="mt-3 flex items-center justify-between gap-2 bg-gradient-to-r from-purple-700 to-purple-500 rounded-xl px-4 py-3 text-white text-xs font-semibold hover:opacity-90 transition-opacity">
-                        <span>
-                          {app.status === 'Resubmission Required'
-                            ? '⚠️ Payment details need correction. Click to update.'
-                            : '🎉 Fully approved! Click to submit your payment details.'}
-                        </span>
-                        <span className="underline whitespace-nowrap flex-shrink-0">Open →</span>
-                      </Link>
-                    )}
+                    {/* Student workflow action */}
+{app.status === 'Awaiting Payment Details' && (
+  <Link
+    to={`/student/payment/${app.id}`}
+    className="mt-3 flex items-center justify-between gap-2 bg-gradient-to-r from-purple-700 to-purple-500 rounded-xl px-4 py-3 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+  >
+    <span>
+      Your application passed the admin review. Submit your bank details.
+    </span>
 
-                    {/* Payment submitted banner */}
-                    {app.status === 'Payment Details Submitted' && (
-                      <Link to={`/student/payment/${app.id}`}
-                        className="mt-3 flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors">
-                        <span>💳 Payment details submitted — awaiting donor verification.</span>
-                        <span className="underline whitespace-nowrap flex-shrink-0">View →</span>
-                      </Link>
-                    )}
+    <span className="underline whitespace-nowrap flex-shrink-0">
+      Submit Details →
+    </span>
+  </Link>
+)}
 
-                    {/* Payment verified banner */}
-                    {app.status === 'Payment Verified' && (
-                      <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
-                        ✅ Payment details verified. Scholarship funds will be disbursed shortly.
-                      </div>
-                    )}
+{app.status === 'Payment Correction Required' && (
+  <Link
+    to={`/student/payment/${app.id}`}
+    className="mt-3 flex items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+  >
+    <span>
+      Your payment details require correction. Review the admin instructions and resubmit.
+    </span>
+
+    <span className="underline whitespace-nowrap flex-shrink-0">
+      Correct Details →
+    </span>
+  </Link>
+)}
+
+{app.status === 'Payment Details Submitted' && (
+  <Link
+    to={`/student/payment/${app.id}`}
+    className="mt-3 flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+  >
+    <span>
+      Payment details submitted and waiting for admin verification.
+    </span>
+
+    <span className="underline whitespace-nowrap flex-shrink-0">
+      View →
+    </span>
+  </Link>
+)}
+
+{app.status === 'Payment Details Verified' && (
+  <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
+    <CheckCircle size={14} />
+
+    Payment details verified. Waiting for donor assignment.
+  </div>
+)}
+
+{app.status === 'Assigned to Donor' && (
+  <div className="mt-3 flex items-center justify-between gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-purple-700 text-xs font-semibold">
+    <span>
+      Your application has been assigned to the scholarship donor.
+    </span>
+
+    <span>
+      Payment pending
+    </span>
+  </div>
+)}
+
+{app.status === 'Payment Processing' && (
+  <div className="mt-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold">
+    <Clock size={14} />
+
+    Your scholarship payment is being processed.
+  </div>
+)}
+
+{app.status === 'Completed' && (
+  <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
+    <CheckCircle size={14} />
+
+    Scholarship payment completed successfully.
+  </div>
+)}
 
                     {/* Progress bar */}
                     <div className="mt-3 space-y-1">
@@ -204,21 +353,58 @@ export default function MyApplications() {
 function ApplicationDetailModal({ app, onClose }) {
   const [docs, setDocs] = useState([])
   const [payment, setPayment] = useState(null)
-  const [donorDecision, setDonorDecision] = useState(null)
+  const [scholarshipPayment, setScholarshipPayment] =
+    useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!app) return
+
     setLoading(true)
+
     Promise.all([
-      api.get(`/applications/${app.id}/documents`).catch(() => ({ data: [] })),
-      api.get(`/payment/${app.id}`).catch(() => ({ data: null })),
-      api.get(`/applications/${app.id}/donor-decision`).catch(() => ({ data: null }))
-    ]).then(([docsRes, payRes, donorRes]) => {
-      setDocs(docsRes.data || [])
-      setPayment(payRes.data || null)
-      setDonorDecision(donorRes.data || null)
-    }).finally(() => setLoading(false))
+      api
+        .get(`/applications/${app.id}/documents`)
+        .catch(() => ({ data: [] })),
+
+      api
+        .get(`/payment/${app.id}`)
+        .catch(() => ({ data: null })),
+
+      api
+        .get(
+          `/student/applications/${app.id}/payment-progress`
+        )
+        .catch(() => ({ data: null })),
+    ])
+      .then(
+        ([
+          documentsResponse,
+          paymentDetailsResponse,
+          scholarshipPaymentResponse,
+        ]) => {
+          setDocs(
+            Array.isArray(documentsResponse.data)
+              ? documentsResponse.data
+              : []
+          )
+
+          setPayment(
+            paymentDetailsResponse.data || null
+          )
+
+          setScholarshipPayment(
+            scholarshipPaymentResponse.data || null
+          )
+        }
+      )
+      .catch(error => {
+        console.error(
+          'Load application details error:',
+          error
+        )
+      })
+      .finally(() => setLoading(false))
   }, [app])
 
   if (!app) return null
@@ -257,14 +443,55 @@ function ApplicationDetailModal({ app, onClose }) {
           <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
             {/* Status Summary Widget */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatusCard label="Application Status" value={app.status} type="status" />
-              <StatusCard label="Admin Approval" value={
-                app.status === 'Rejected' ? 'Rejected' :
-                  ['Approved', 'Fully Approved', 'Payment Details Submitted', 'Payment Verified', 'Completed'].includes(app.status) ? 'Approved' : 'Pending'
-              } />
-              <StatusCard label="Donor Approval" value={donorDecision?.donor_decision || 'Pending'} />
-              <StatusCard label="Payment Verification" value={payment?.payment_details_status || 'Pending'} />
-            </div>
+  <StatusCard
+    label="Application Status"
+    value={app.status}
+    type="status"
+  />
+
+  <StatusCard
+    label="Admin Review"
+    value={
+      app.status === 'Rejected'
+        ? 'Rejected'
+        : [
+            'Awaiting Payment Details',
+            'Payment Details Submitted',
+            'Payment Correction Required',
+            'Payment Details Verified',
+            'Assigned to Donor',
+            'Payment Processing',
+            'Completed',
+          ].includes(app.status)
+        ? 'Approved'
+        : 'Pending'
+    }
+  />
+
+  <StatusCard
+    label="Bank Details"
+    value={
+      payment?.payment_details_status ||
+      'Locked'
+    }
+  />
+
+  <StatusCard
+    label="Scholarship Payment"
+    value={
+      scholarshipPayment?.payment_status ||
+      (
+        app.status === 'Completed'
+          ? 'Paid'
+          : app.status === 'Payment Processing'
+          ? 'Processing'
+          : app.status === 'Assigned to Donor'
+          ? 'Pending'
+          : 'Not Started'
+      )
+    }
+  />
+</div>
 
             {/* admin note if any */}
             {app.admin_reason && (
@@ -455,32 +682,310 @@ function ApplicationDetailModal({ app, onClose }) {
                 </div>
               </DetailSection>
 
-              {/* Payment Details if submitted */}
-              {payment && (
-                <DetailSection title="Payment Details" icon={CreditCard}>
-                  <InfoGrid>
-                    <InfoItem label="Bank Name" value={payment.bank_name} />
-                    <InfoItem label="Branch Name" value={payment.branch_name} />
-                    <InfoItem label="Account Number" value={payment.account_number} mono />
-                    <InfoItem label="Account Holder Name" value={payment.account_holder_name} />
-                    <InfoItem label="Account Type" value={payment.account_type} />
-                    <InfoItem label="Contact Number" value={payment.contact_number} />
-                    {payment.passbook_file_url && (
-                      <div className="sm:col-span-2 pt-2 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-500">Bank Passbook / Statement Copy</span>
+              {/* Student bank details */}
+              {payment &&
+                payment.payment_details_status !== 'Locked' && (
+                  <DetailSection
+                    title="Bank Details"
+                    icon={CreditCard}
+                  >
+                    <InfoGrid>
+                      <InfoItem
+                        label="Bank Name"
+                        value={payment.bank_name}
+                      />
+
+                      <InfoItem
+                        label="Branch Name"
+                        value={payment.branch_name}
+                      />
+
+                      <InfoItem
+                        label="Account Number"
+                        value={
+                          payment.account_number
+                            ? `${'•'.repeat(
+                                Math.max(
+                                  String(
+                                    payment.account_number
+                                  ).length - 4,
+                                  0
+                                )
+                              )}${String(
+                                payment.account_number
+                              ).slice(-4)}`
+                            : '—'
+                        }
+                        mono
+                      />
+
+                      <InfoItem
+                        label="Account Holder Name"
+                        value={
+                          payment.account_holder_name
+                        }
+                      />
+
+                      <InfoItem
+                        label="Account Type"
+                        value={payment.account_type}
+                      />
+
+                      <InfoItem
+                        label="Contact Number"
+                        value={payment.contact_number}
+                      />
+
+                      <InfoItem
+                        label="Bank Details Status"
+                        value={
+                          payment.payment_details_status
+                        }
+                      />
+
+                      <InfoItem
+                        label="Verified Date"
+                        value={
+                          payment.payment_verified_date
+                            ? format(
+                                new Date(
+                                  payment.payment_verified_date
+                                ),
+                                'MMM d, yyyy · h:mm a'
+                              )
+                            : null
+                        }
+                      />
+
+                      {payment.admin_payment_comments && (
+                        <InfoItem
+                          label="Admin Comments"
+                          value={
+                            payment.admin_payment_comments
+                          }
+                          fullWidth
+                        />
+                      )}
+
+                      {payment.resubmission_reason && (
+                        <InfoItem
+                          label="Correction Instructions"
+                          value={
+                            payment.resubmission_reason
+                          }
+                          fullWidth
+                        />
+                      )}
+
+                      {payment.passbook_url && (
+                        <div className="sm:col-span-2 pt-3 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                          <div>
+                            <p className="text-xs font-semibold text-slate-500">
+                              Bank Passbook / Account Proof
+                            </p>
+
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {payment.passbook_file_name ||
+                                'Uploaded bank document'}
+                            </p>
+                          </div>
+
+                          <div className="inline-flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                viewDocument(
+                                  payment.passbook_url
+                                )
+                              }
+                              className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                            >
+                              <Eye size={12} />
+                              View
+                            </button>
+
+                            <a
+                              href={payment.passbook_url}
+                              download={
+                                payment.passbook_file_name
+                              }
+                              className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1 border border-slate-200 rounded-lg"
+                            >
+                              <Download size={12} />
+                              Download
+                            </a>
+                          </div>
+                        </div>
+                      )}
+                    </InfoGrid>
+                  </DetailSection>
+                )}
+
+              {/* Actual scholarship payment */}
+              {(
+                scholarshipPayment ||
+                [
+                  'Assigned to Donor',
+                  'Payment Processing',
+                  'Completed',
+                ].includes(app.status)
+              ) && (
+                <DetailSection
+                  title="Scholarship Payment"
+                  icon={DollarSign}
+                >
+                  <div className="space-y-4">
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <StatusCard
+                        label="Payment Status"
+                        value={
+                          scholarshipPayment?.payment_status ||
+                          (
+                            app.status === 'Completed'
+                              ? 'Paid'
+                              : app.status ===
+                                'Payment Processing'
+                              ? 'Processing'
+                              : 'Pending'
+                          )
+                        }
+                      />
+
+                      <InfoItem
+                        label="Amount Paid"
+                        value={
+                          scholarshipPayment?.amount
+                            ? `LKR ${Number(
+                                scholarshipPayment.amount
+                              ).toLocaleString()}`
+                            : null
+                        }
+                      />
+
+                      <InfoItem
+                        label="Payment Date"
+                        value={
+                          scholarshipPayment?.payment_date
+                            ? format(
+                                new Date(
+                                  scholarshipPayment.payment_date
+                                ),
+                                'MMM d, yyyy'
+                              )
+                            : null
+                        }
+                      />
+
+                      <InfoItem
+                        label="Transaction Reference"
+                        value={
+                          scholarshipPayment
+                            ?.transaction_reference
+                        }
+                        mono
+                      />
+
+                      {scholarshipPayment
+                        ?.donor_comments && (
+                        <InfoItem
+                          label="Donor Comments"
+                          value={
+                            scholarshipPayment
+                              .donor_comments
+                          }
+                          fullWidth
+                        />
+                      )}
+
+                      {scholarshipPayment
+                        ?.failure_reason && (
+                        <InfoItem
+                          label="Failure Reason"
+                          value={
+                            scholarshipPayment
+                              .failure_reason
+                          }
+                          fullWidth
+                        />
+                      )}
+                    </div>
+
+                    {scholarshipPayment
+                      ?.receipt_url && (
+                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
+                        <div>
+                          <p className="text-xs font-semibold text-slate-500">
+                            Payment Receipt
+                          </p>
+
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {scholarshipPayment
+                              .receipt_file_name ||
+                              'Scholarship payment receipt'}
+                          </p>
+                        </div>
+
                         <div className="inline-flex gap-2">
-                          <button onClick={() => viewDocument(payment.passbook_file_url)} className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1">
-                            <Eye size={12} /> View
+                          <button
+                            type="button"
+                            onClick={() =>
+                              viewDocument(
+                                scholarshipPayment
+                                  .receipt_url
+                              )
+                            }
+                            className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+                          >
+                            <Eye size={12} />
+                            View Receipt
                           </button>
-                          <a href={payment.passbook_file_url} download className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1 border border-slate-200 rounded-lg">
-                            <Download size={12} /> Download
+
+                          <a
+                            href={
+                              scholarshipPayment
+                                .receipt_url
+                            }
+                            download={
+                              scholarshipPayment
+                                .receipt_file_name
+                            }
+                            className="btn-ghost text-xs px-3 py-1.5 flex items-center gap-1 border border-slate-200 rounded-lg"
+                          >
+                            <Download size={12} />
+                            Download
                           </a>
                         </div>
                       </div>
                     )}
-                  </InfoGrid>
+
+                    {app.status === 'Completed' && (
+                      <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-700 flex items-center gap-2">
+                        <CheckCircle size={16} />
+                        Scholarship payment completed successfully.
+                      </div>
+                    )}
+
+                    {scholarshipPayment
+                      ?.payment_status ===
+                      'On Hold' && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center gap-2">
+                        <Clock size={16} />
+                        Your scholarship payment is temporarily on hold.
+                      </div>
+                    )}
+
+                    {scholarshipPayment
+                      ?.payment_status ===
+                      'Failed' && (
+                      <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 flex items-center gap-2">
+                        <AlertCircle size={16} />
+                        The previous payment attempt was unsuccessful.
+                      </div>
+                    )}
+                  </div>
                 </DetailSection>
               )}
+
             </div>
           </div>
         )}
@@ -499,10 +1004,40 @@ function StatusCard({ label, value, type = 'badge' }) {
   const getBadgeClass = (val) => {
     if (!val) return 'badge-slate'
     const clean = val.toLowerCase()
-    if (clean.includes('approved') || clean === 'verified' || clean === 'completed') return 'badge-green'
-    if (clean.includes('pending') || clean === 'submitted' || clean === 're-submitted' || clean === 'pending verification') return 'badge-blue'
-    if (clean.includes('rejected') || clean === 'missing') return 'badge-red'
-    if (clean.includes('resubmission') || clean.includes('review')) return 'badge-amber'
+    if (
+      clean.includes('approved') ||
+      clean.includes('verified') ||
+      clean === 'completed' ||
+      clean === 'paid'
+    ) {
+      return 'badge-green'
+    }
+
+    if (
+      clean.includes('pending') ||
+      clean === 'submitted' ||
+      clean === 're-submitted' ||
+      clean === 'processing'
+    ) {
+      return 'badge-blue'
+    }
+
+    if (
+      clean.includes('rejected') ||
+      clean === 'missing' ||
+      clean === 'failed'
+    ) {
+      return 'badge-red'
+    }
+
+    if (
+      clean.includes('correction') ||
+      clean.includes('resubmission') ||
+      clean.includes('review') ||
+      clean === 'on hold'
+    ) {
+      return 'badge-amber'
+    }
     return 'badge-slate'
   }
 

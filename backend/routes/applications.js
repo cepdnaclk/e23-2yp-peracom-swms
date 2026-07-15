@@ -218,23 +218,33 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
        WHERE id = $1`,
       [req.params.id]
     )
-
     await query(
-      `INSERT INTO payment_details (
-         application_id,
-         student_id,
-         payment_details_status,
-         updated_at
-       )
-       VALUES ($1, $2, 'Requested', NOW())
-       ON CONFLICT (application_id)
-       DO UPDATE SET
-         payment_details_status = 'Requested',
-         resubmission_reason = NULL,
-         admin_payment_comments = NULL,
-         updated_at = NOW()`,
-      [req.params.id, application.student_id]
-    )
+  `INSERT INTO payment_details (
+     application_id,
+     student_id,
+     payment_details_status,
+     payment_resubmission_count,
+     updated_at
+   )
+   VALUES (
+     $1,
+     $2,
+     'Requested',
+     0,
+     NOW()
+   )
+   ON CONFLICT (application_id)
+   DO UPDATE SET
+     payment_details_status = 'Requested',
+     resubmission_reason = NULL,
+     admin_payment_comments = NULL,
+     updated_at = NOW()`,
+  [
+    req.params.id,
+    application.student_id,
+  ]
+)
+    
 
     await query(
       `INSERT INTO notifications (
@@ -253,6 +263,17 @@ router.post('/:id/approve', authenticate, requireAdmin, async (req, res) => {
         `/student/payment/${req.params.id}`
       ]
     )
+    const paymentCheck = await query(
+  `SELECT *
+   FROM payment_details
+   WHERE application_id = $1`,
+  [req.params.id]
+)
+
+console.log(
+  'Payment details after approve:',
+  paymentCheck.rows
+)
 
     return res.json({
       message: 'Application approved and payment details requested',

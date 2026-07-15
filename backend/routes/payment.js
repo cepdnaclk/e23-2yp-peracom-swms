@@ -985,4 +985,846 @@ router.post(
   }
 )
 
+// ─────────────────────────────────────────────────────────────
+// POST /api/payment/:application_id/process
+//
+// Donor starts processing an assigned scholarship payment.
+// ─────────────────────────────────────────────────────────────
+router.post(
+  '/:application_id/process',
+  authenticate,
+  requireDonor,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params
+
+      const donorComments =
+        cleanText(req.body.donor_comments)
+
+      // Confirm that:
+      // 1. The application is assigned to this donor.
+      // 2. The student's bank details were verified by admin.
+      const assignmentResult = await query(
+        `SELECT
+           a.id AS application_id,
+           a.student_id,
+           a.status AS application_status,
+           s.title AS scholarship_title,
+           pd.payment_details_status
+
+         FROM applications a
+
+         JOIN donor_students ds
+           ON ds.application_id = a.id
+
+         JOIN scholarships s
+           ON s.id = a.scholarship_id
+
+         JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         WHERE a.id = $1
+           AND ds.donor_id = $2`,
+        [
+          application_id,
+          req.user.id,
+        ]
+      )
+
+      if (!assignmentResult.rows.length) {
+        return res.status(403).json({
+          message:
+            'This application is not assigned to you',
+        })
+      }
+
+      const assignment =
+        assignmentResult.rows[0]
+
+      if (
+        assignment.payment_details_status !==
+        'Admin Verified'
+      ) {
+        return res.status(400).json({
+          message:
+            'The student bank details have not been verified by the admin',
+        })
+      }
+
+      const existingPaymentResult =
+        await query(
+          `SELECT payment_status
+           FROM scholarship_payments
+           WHERE application_id = $1
+             AND donor_id = $2`,
+          [
+            application_id,
+            req.user.id,
+          ]
+        )
+
+      if (
+        existingPaymentResult.rows[0]
+          ?.payment_status === 'Paid'
+      ) {
+        return res.status(400).json({
+          message:
+            'This scholarship payment is already completed',
+        })
+      }
+
+      const paymentResult = await query(
+        `INSERT INTO scholarship_payments (
+           application_id,
+           donor_id,
+           payment_status,
+           donor_comments,
+           failure_reason,
+           updated_at
+         )
+         VALUES (
+           $1,
+           $2,
+           'Processing',
+           $3,
+           NULL,
+           NOW()
+         )
+
+         ON CONFLICT (application_id)
+
+         DO UPDATE SET
+           donor_id = EXCLUDED.donor_id,
+           payment_status = 'Processing',
+           donor_comments =
+             EXCLUDED.donor_comments,
+           failure_reason = NULL,
+           updated_at = NOW()
+
+         RETURNING *`,
+        [
+          application_id,
+          req.user.id,
+          donorComments || null,
+        ]
+      )
+
+      await query(
+        `UPDATE applications
+         SET
+           status = 'Payment Processing',
+           updated_at = NOW()
+         WHERE id = $1`,
+        [application_id]
+      )
+
+      await query(
+        `INSERT INTO notifications (
+           user_id,
+           type,
+           title,
+           message,
+           link
+         )
+         VALUES (
+           $1,
+           'payment_processing',
+           'Scholarship Payment Processing',
+           $2,
+           '/student/applications'
+         )`,
+        [
+          assignment.student_id,
+          `Your scholarship payment for ${assignment.scholarship_title} is now being processed.`,
+        ]
+      )
+
+      return res.json({
+        message:
+          'Payment marked as processing',
+        payment:
+          paymentResult.rows[0],
+      })
+    } catch (err) {
+      console.error(
+        'Start scholarship payment error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to start payment processing',
+      })
+    }
+  }
+)
+
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/payment/:application_id/hold
+//
+// Donor places a scholarship payment on hold.
+// ─────────────────────────────────────────────────────────────
+router.post(
+  '/:application_id/hold',
+  authenticate,
+  requireDonor,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params
+
+      const holdReason =
+        cleanText(req.body.reason)
+
+      const donorComments =
+        cleanText(req.body.donor_comments)
+
+      if (!holdReason) {
+        return res.status(400).json({
+          message:
+            'A reason is required to place the payment on hold',
+        })
+      }
+
+      const assignmentResult = await query(
+        `SELECT
+           a.student_id,
+           s.title AS scholarship_title
+
+         FROM donor_students ds
+
+         JOIN applications a
+           ON a.id = ds.application_id
+
+         JOIN scholarships s
+           ON s.id = a.scholarship_id
+
+         JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         WHERE ds.application_id = $1
+           AND ds.donor_id = $2
+           AND pd.payment_details_status =
+             'Admin Verified'`,
+        [
+          application_id,
+          req.user.id,
+        ]
+      )
+
+      if (!assignmentResult.rows.length) {
+        return res.status(403).json({
+          message:
+            'You cannot update this payment',
+        })
+      }
+
+      const assignment =
+        assignmentResult.rows[0]
+
+      const existingPaymentResult =
+        await query(
+          `SELECT payment_status
+           FROM scholarship_payments
+           WHERE application_id = $1
+             AND donor_id = $2`,
+          [
+            application_id,
+            req.user.id,
+          ]
+        )
+
+      if (
+        existingPaymentResult.rows[0]
+          ?.payment_status === 'Paid'
+      ) {
+        return res.status(400).json({
+          message:
+            'A completed payment cannot be placed on hold',
+        })
+      }
+
+      const combinedComments = donorComments
+        ? `Hold reason: ${holdReason}\n${donorComments}`
+        : `Hold reason: ${holdReason}`
+
+      const paymentResult = await query(
+        `INSERT INTO scholarship_payments (
+           application_id,
+           donor_id,
+           payment_status,
+           donor_comments,
+           failure_reason,
+           updated_at
+         )
+         VALUES (
+           $1,
+           $2,
+           'On Hold',
+           $3,
+           NULL,
+           NOW()
+         )
+
+         ON CONFLICT (application_id)
+
+         DO UPDATE SET
+           donor_id = EXCLUDED.donor_id,
+           payment_status = 'On Hold',
+           donor_comments =
+             EXCLUDED.donor_comments,
+           failure_reason = NULL,
+           updated_at = NOW()
+
+         RETURNING *`,
+        [
+          application_id,
+          req.user.id,
+          combinedComments,
+        ]
+      )
+
+      await query(
+        `UPDATE applications
+         SET
+           status = 'Payment Processing',
+           updated_at = NOW()
+         WHERE id = $1`,
+        [application_id]
+      )
+
+      await query(
+        `INSERT INTO notifications (
+           user_id,
+           type,
+           title,
+           message,
+           link
+         )
+         VALUES (
+           $1,
+           'payment_on_hold',
+           'Scholarship Payment On Hold',
+           $2,
+           '/student/applications'
+         )`,
+        [
+          assignment.student_id,
+          `Your scholarship payment for ${assignment.scholarship_title} is temporarily on hold. Reason: ${holdReason}`,
+        ]
+      )
+
+      return res.json({
+        message:
+          'Payment placed on hold',
+        payment:
+          paymentResult.rows[0],
+      })
+    } catch (err) {
+      console.error(
+        'Hold scholarship payment error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to place payment on hold',
+      })
+    }
+  }
+)
+
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/payment/:application_id/fail
+//
+// Donor records a failed scholarship-payment attempt.
+// ─────────────────────────────────────────────────────────────
+router.post(
+  '/:application_id/fail',
+  authenticate,
+  requireDonor,
+  async (req, res) => {
+    try {
+      const { application_id } = req.params
+
+      const failureReason =
+        cleanText(req.body.failure_reason)
+
+      const donorComments =
+        cleanText(req.body.donor_comments)
+
+      if (!failureReason) {
+        return res.status(400).json({
+          message:
+            'A payment failure reason is required',
+        })
+      }
+
+      const assignmentResult = await query(
+        `SELECT
+           a.student_id,
+           s.title AS scholarship_title
+
+         FROM donor_students ds
+
+         JOIN applications a
+           ON a.id = ds.application_id
+
+         JOIN scholarships s
+           ON s.id = a.scholarship_id
+
+         JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         WHERE ds.application_id = $1
+           AND ds.donor_id = $2
+           AND pd.payment_details_status =
+             'Admin Verified'`,
+        [
+          application_id,
+          req.user.id,
+        ]
+      )
+
+      if (!assignmentResult.rows.length) {
+        return res.status(403).json({
+          message:
+            'You cannot update this payment',
+        })
+      }
+
+      const assignment =
+        assignmentResult.rows[0]
+
+      const existingPaymentResult =
+        await query(
+          `SELECT payment_status
+           FROM scholarship_payments
+           WHERE application_id = $1
+             AND donor_id = $2`,
+          [
+            application_id,
+            req.user.id,
+          ]
+        )
+
+      if (
+        existingPaymentResult.rows[0]
+          ?.payment_status === 'Paid'
+      ) {
+        return res.status(400).json({
+          message:
+            'A completed payment cannot be marked as failed',
+        })
+      }
+
+      const paymentResult = await query(
+        `INSERT INTO scholarship_payments (
+           application_id,
+           donor_id,
+           payment_status,
+           donor_comments,
+           failure_reason,
+           updated_at
+         )
+         VALUES (
+           $1,
+           $2,
+           'Failed',
+           $3,
+           $4,
+           NOW()
+         )
+
+         ON CONFLICT (application_id)
+
+         DO UPDATE SET
+           donor_id = EXCLUDED.donor_id,
+           payment_status = 'Failed',
+           donor_comments =
+             EXCLUDED.donor_comments,
+           failure_reason =
+             EXCLUDED.failure_reason,
+           updated_at = NOW()
+
+         RETURNING *`,
+        [
+          application_id,
+          req.user.id,
+          donorComments || null,
+          failureReason,
+        ]
+      )
+
+      // Keep the student assigned to the donor so the donor can retry.
+      await query(
+        `UPDATE applications
+         SET
+           status = 'Assigned to Donor',
+           updated_at = NOW()
+         WHERE id = $1`,
+        [application_id]
+      )
+
+      await query(
+        `INSERT INTO notifications (
+           user_id,
+           type,
+           title,
+           message,
+           link
+         )
+         VALUES (
+           $1,
+           'payment_failed',
+           'Scholarship Payment Failed',
+           $2,
+           '/student/applications'
+         )`,
+        [
+          assignment.student_id,
+          `The payment attempt for ${assignment.scholarship_title} was unsuccessful. Reason: ${failureReason}`,
+        ]
+      )
+
+      return res.json({
+        message:
+          'Payment marked as failed',
+        payment:
+          paymentResult.rows[0],
+      })
+    } catch (err) {
+      console.error(
+        'Fail scholarship payment error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to update payment status',
+      })
+    }
+  }
+)
+
+
+// ─────────────────────────────────────────────────────────────
+// POST /api/payment/:application_id/complete
+//
+// Donor records a completed scholarship payment.
+// Expected multipart field name: receipt
+// ─────────────────────────────────────────────────────────────
+router.post(
+  '/:application_id/complete',
+  authenticate,
+  requireDonor,
+  upload.single('receipt'),
+  async (req, res) => {
+    try {
+      const { application_id } = req.params
+
+      const amount =
+        Number.parseFloat(req.body.amount)
+
+      const transactionReference =
+        cleanText(
+          req.body.transaction_reference
+        )
+
+      const paymentDate =
+        cleanText(req.body.payment_date)
+
+      const donorComments =
+        cleanText(req.body.donor_comments)
+
+      if (
+        Number.isNaN(amount) ||
+        amount <= 0
+      ) {
+        return res.status(400).json({
+          message:
+            'A valid payment amount is required',
+        })
+      }
+
+      if (!transactionReference) {
+        return res.status(400).json({
+          message:
+            'Transaction reference is required',
+        })
+      }
+
+      if (!paymentDate) {
+        return res.status(400).json({
+          message:
+            'Payment date is required',
+        })
+      }
+
+      const parsedPaymentDate =
+        new Date(paymentDate)
+
+      if (
+        Number.isNaN(
+          parsedPaymentDate.getTime()
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            'Invalid payment date',
+        })
+      }
+
+      if (!req.file) {
+        return res.status(400).json({
+          message:
+            'Payment receipt is required',
+        })
+      }
+
+      const allowedMimeTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+      ]
+
+      if (
+        !allowedMimeTypes.includes(
+          req.file.mimetype
+        )
+      ) {
+        return res.status(400).json({
+          message:
+            'Only PDF, JPG and PNG receipt files are allowed',
+        })
+      }
+
+      if (
+        req.file.size >
+        5 * 1024 * 1024
+      ) {
+        return res.status(400).json({
+          message:
+            'The payment receipt must not exceed 5 MB',
+        })
+      }
+
+      const assignmentResult = await query(
+        `SELECT
+           a.student_id,
+           a.status AS application_status,
+           s.title AS scholarship_title,
+           pd.payment_details_status
+
+         FROM donor_students ds
+
+         JOIN applications a
+           ON a.id = ds.application_id
+
+         JOIN scholarships s
+           ON s.id = a.scholarship_id
+
+         JOIN payment_details pd
+           ON pd.application_id = a.id
+
+         WHERE ds.application_id = $1
+           AND ds.donor_id = $2`,
+        [
+          application_id,
+          req.user.id,
+        ]
+      )
+
+      if (!assignmentResult.rows.length) {
+        return res.status(403).json({
+          message:
+            'This application is not assigned to you',
+        })
+      }
+
+      const assignment =
+        assignmentResult.rows[0]
+
+      if (
+        assignment.payment_details_status !==
+        'Admin Verified'
+      ) {
+        return res.status(400).json({
+          message:
+            'The student bank details have not been verified by the admin',
+        })
+      }
+
+      const existingPaymentResult =
+        await query(
+          `SELECT payment_status
+           FROM scholarship_payments
+           WHERE application_id = $1
+             AND donor_id = $2`,
+          [
+            application_id,
+            req.user.id,
+          ]
+        )
+
+      if (
+        existingPaymentResult.rows[0]
+          ?.payment_status === 'Paid'
+      ) {
+        return res.status(400).json({
+          message:
+            'This scholarship payment is already completed',
+        })
+      }
+
+      let receiptUrl
+      let receiptFileName
+
+      try {
+        const extension =
+          req.file.originalname
+            .split('.')
+            .pop()
+            ?.toLowerCase() || 'file'
+
+        const filePath =
+          `payments/${application_id}/receipt_${Date.now()}.${extension}`
+
+        receiptUrl = await uploadFile(
+          'welfare-docs',
+          filePath,
+          req.file.buffer,
+          req.file.mimetype
+        )
+
+        receiptFileName =
+          req.file.originalname
+      } catch (uploadError) {
+        console.error(
+          'Payment receipt upload failed:',
+          uploadError
+        )
+
+        return res.status(500).json({
+          message:
+            'Failed to upload the payment receipt',
+        })
+      }
+
+      const paymentResult = await query(
+        `INSERT INTO scholarship_payments (
+           application_id,
+           donor_id,
+           amount,
+           payment_status,
+           transaction_reference,
+           payment_date,
+           receipt_url,
+           receipt_file_name,
+           donor_comments,
+           failure_reason,
+           updated_at
+         )
+         VALUES (
+           $1,
+           $2,
+           $3,
+           'Paid',
+           $4,
+           $5,
+           $6,
+           $7,
+           $8,
+           NULL,
+           NOW()
+         )
+
+         ON CONFLICT (application_id)
+
+         DO UPDATE SET
+           donor_id =
+             EXCLUDED.donor_id,
+           amount =
+             EXCLUDED.amount,
+           payment_status = 'Paid',
+           transaction_reference =
+             EXCLUDED.transaction_reference,
+           payment_date =
+             EXCLUDED.payment_date,
+           receipt_url =
+             EXCLUDED.receipt_url,
+           receipt_file_name =
+             EXCLUDED.receipt_file_name,
+           donor_comments =
+             EXCLUDED.donor_comments,
+           failure_reason = NULL,
+           updated_at = NOW()
+
+         RETURNING *`,
+        [
+          application_id,
+          req.user.id,
+          amount,
+          transactionReference,
+          parsedPaymentDate,
+          receiptUrl,
+          receiptFileName,
+          donorComments || null,
+        ]
+      )
+
+      await query(
+        `UPDATE applications
+         SET
+           status = 'Completed',
+           updated_at = NOW()
+         WHERE id = $1`,
+        [application_id]
+      )
+
+      await query(
+        `INSERT INTO notifications (
+           user_id,
+           type,
+           title,
+           message,
+           link
+         )
+         VALUES (
+           $1,
+           'payment_completed',
+           'Scholarship Payment Completed',
+           $2,
+           '/student/applications'
+         )`,
+        [
+          assignment.student_id,
+          `Your scholarship payment of LKR ${amount.toLocaleString()} for ${assignment.scholarship_title} has been completed. Transaction reference: ${transactionReference}.`,
+        ]
+      )
+
+      return res.json({
+        message:
+          'Scholarship payment recorded successfully',
+        payment:
+          paymentResult.rows[0],
+      })
+    } catch (err) {
+      console.error(
+        'Complete scholarship payment error:',
+        err
+      )
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          'Failed to complete scholarship payment',
+      })
+    }
+  }
+)
 export default router
