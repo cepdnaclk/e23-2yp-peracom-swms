@@ -1,0 +1,413 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@400;600&display=swap');
+
+/* Main Wrapper Theme */
+.peracomTheme {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fc;
+    min-height: 100vh;
+    color: #2c3e50;
+}
+
+/* University Navbar */
+.topNavbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 50px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.navLogoSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logoPlaceholder {
+    font-size: 2rem;
+    background: #1e2b5e;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.navTitles {
+    display: flex;
+    flex-direction: column;
+}
+
+.uniName {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sysName {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #1e2b5e;
+}
+
+.navLinks {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.navLinks a {
+    text-decoration: none;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.navLinks a:hover {
+    color: #2980b9;
+}
+
+/* Dark Blue Hero Section */
+.heroSection {
+    background-color: #1e2b5e;
+    color: #ffffff;
+    padding: 60px 0;
+    background-image: linear-gradient(to right, #1e2b5e, #293a7a);
+}
+
+/* FULL WIDTH FIX FOR HERO */
+.heroContent {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 50px;
+    box-sizing: border-box;
+    margin: 0 auto;
+}
+
+.heroTitle {
+    font-family: 'Merriweather', serif;
+    font-size: 2.2rem;
+    margin: 0 0 10px 0;
+    line-height: 1.3;
+}
+
+.heroSubtitle {
+    font-size: 1.1rem;
+    color: #d1d8f0;
+    margin: 0;
+}
+
+/* FULL WIDTH FIX FOR ADMIN CONTAINER */
+.adminContainer {
+    width: 98%;
+    max-width: 100%;
+    margin: -30px auto 40px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+}
+
+.pageHeader {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.sectionTitle {
+    font-family: 'Merriweather', serif;
+    font-size: 1.8rem;
+    color: #1e2b5e;
+    margin: 0 0 5px 0;
+}
+
+.sectionSubtitle {
+    color: #7f8c8d;
+    margin: 0;
+}
+
+/* Master-Detail Grid Layout */
+.dashboardLayout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 25px;
+    height: 70vh;
+    min-height: 650px;
+}
+
+/* Left Panel */
+.issueListPanel {
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.listControls {
+    padding: 15px;
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.filterSelect {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
+    color: #1e2b5e;
+}
+
+.issueList {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.issueListItem {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.issueListItem:hover {
+    border-color: #3182ce;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.activeItem {
+    border-left: 5px solid #1e2b5e;
+    border-color: #1e2b5e;
+    background: #eff6ff;
+}
+
+.itemHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.issueId {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    font-weight: bold;
+}
+
+.itemTitle {
+    margin: 0 0 6px 0;
+    font-size: 1rem;
+    color: #1e2b5e;
+    line-height: 1.4;
+}
+
+.itemReporter {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+/* Right Panel */
+.issueDetailPanel {
+    background: #fff;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    overflow-y: auto;
+}
+
+.emptyDetailState {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: #94a3b8;
+}
+
+.detailContent {
+    padding: 30px;
+}
+
+.detailHeader {
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.detailHeader h2 {
+    margin: 0 0 15px 0;
+    color: #1e2b5e;
+    font-size: 1.8rem;
+    line-height: 1.3;
+}
+
+.metaData {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    font-size: 0.95rem;
+    background: #f8fafc;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.descriptionBox {
+    margin-bottom: 30px;
+}
+
+.descriptionBox h3 {
+    margin-bottom: 10px;
+    color: #334155;
+    font-size: 1.1rem;
+}
+
+.descriptionBox p {
+    line-height: 1.6;
+    color: #475569;
+    background: #f1f5f9;
+    padding: 15px;
+    border-left: 4px solid #94a3b8;
+    border-radius: 0 8px 8px 0;
+}
+
+.attachmentMock {
+    margin-top: 10px;
+    padding: 8px 15px;
+    background: #e0e7ff;
+    color: #3730a3;
+    border-radius: 6px;
+    display: inline-block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Resolution & Form */
+.resolutionSection {
+    background: #ffffff;
+    padding: 25px;
+    border-radius: 10px;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.02);
+}
+
+.resolutionSection h3 {
+    margin-top: 0;
+    color: #1e2b5e;
+    font-size: 1.2rem;
+}
+
+.statusUpdateGroup {
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.statusUpdateGroup label {
+    font-weight: 600;
+    color: #475569;
+}
+
+.statusDropdown {
+    padding: 8px 15px;
+    border-radius: 6px;
+    border: 1px solid #cbd5e1;
+    font-weight: 600;
+    color: #1e2b5e;
+}
+
+.responseForm label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.responseTextarea {
+    width: 100%;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #cbd5e1;
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 1rem;
+    margin-bottom: 15px;
+    resize: vertical;
+}
+
+.responseTextarea:focus {
+    outline: none;
+    border-color: #3182ce;
+    box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.submitBtn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 12px 25px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.submitBtn:hover {
+    background: #219653;
+}
+
+/* Badges */
+.statusBadge {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.Open {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.InProgress {
+    background: #fef3c7;
+    color: #d97706;
+}
+
+.Resolved {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.priorityBadge {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.priorityBadge.Critical {
+    background: #dc2626;
+    color: white;
+}
+
+.priorityBadge.High {
+    background: #ea580c;
+    color: white;
+}
+
+.priorityBadge.Normal {
+    background: #3182ce;
+    color: white;
+}

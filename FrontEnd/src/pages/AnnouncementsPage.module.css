@@ -1,0 +1,410 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Inter:wght@400;600&display=swap');
+
+/* Main Wrapper Theme */
+.peracomTheme {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8f9fc;
+    min-height: 100vh;
+    color: #2c3e50;
+}
+
+/* University Navbar */
+.topNavbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 50px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.navLogoSection {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.logoPlaceholder {
+    font-size: 2rem;
+    background: #1e2b5e;
+    color: white;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.navTitles {
+    display: flex;
+    flex-direction: column;
+}
+
+.uniName {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.sysName {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #1e2b5e;
+}
+
+.navLinks {
+    display: flex;
+    align-items: center;
+    gap: 25px;
+}
+
+.navLinks a {
+    text-decoration: none;
+    color: #2c3e50;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.navLinks a:hover {
+    color: #2980b9;
+}
+
+/* Dark Blue Hero Section */
+.heroSection {
+    background-color: #1e2b5e;
+    color: #ffffff;
+    padding: 60px 0;
+    background-image: linear-gradient(to right, #1e2b5e, #293a7a);
+}
+
+/* FULL WIDTH FIX FOR HERO */
+.heroContent {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 50px;
+    box-sizing: border-box;
+    margin: 0 auto;
+}
+
+.heroTitle {
+    font-family: 'Merriweather', serif;
+    font-size: 2.2rem;
+    margin: 0 0 10px 0;
+    line-height: 1.3;
+}
+
+.heroSubtitle {
+    font-size: 1.1rem;
+    color: #d1d8f0;
+    margin: 0;
+}
+
+/* FULL WIDTH FIX FOR ADMIN CONTAINER */
+.adminContainer {
+    width: 98%;
+    max-width: 100%;
+    margin: -30px auto 40px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+    box-sizing: border-box;
+}
+
+/* Header & Controls */
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.sectionTitle {
+    font-family: 'Merriweather', serif;
+    font-size: 1.8rem;
+    color: #1e2b5e;
+    margin: 0 0 5px 0;
+}
+
+.sectionSubtitle {
+    color: #7f8c8d;
+    margin: 0;
+}
+
+.createNewBtn {
+    background-color: #27ae60;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.createNewBtn:hover {
+    background-color: #219653;
+}
+
+/* Stats Widget */
+.statsWidget {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.statCard {
+    background: #f8fafc;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    text-align: center;
+}
+
+.statCard h3 {
+    margin: 0;
+    color: #64748b;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+}
+
+.statCard p {
+    margin: 10px 0 0 0;
+    font-size: 2.2rem;
+    font-weight: bold;
+    color: #1e2b5e;
+}
+
+.urgentStat p {
+    color: #e53e3e;
+}
+
+/* Filters */
+.filterSection {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.searchBar,
+.filterDropdown {
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.95rem;
+}
+
+.searchBar {
+    flex: 2;
+}
+
+.filterDropdown {
+    flex: 1;
+    background-color: white;
+}
+
+/* Table */
+.dataTableContainer {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dataTable {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.dataTable th,
+.dataTable td {
+    padding: 15px;
+    border-bottom: 1px solid #edf2f7;
+}
+
+.dataTable th {
+    background-color: #f1f5f9;
+    color: #475569;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+}
+
+.titleColumn strong {
+    display: block;
+    color: #1e2b5e;
+    margin-bottom: 4px;
+    font-size: 1.05rem;
+}
+
+.dateInfo {
+    font-size: 0.8rem;
+    color: #94a3b8;
+}
+
+.noData {
+    text-align: center;
+    padding: 30px;
+    color: #94a3b8;
+}
+
+/* Badges */
+.badge {
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.bgAudience {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.bgType {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.bgSuccess {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.bgDraft {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+/* Buttons */
+.actionColumn {
+    display: flex;
+    gap: 8px;
+}
+
+.editBtn,
+.deleteBtn {
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.editBtn {
+    background: #e0e7ff;
+    color: #4f46e5;
+}
+
+.deleteBtn {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Modal */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modalContent {
+    background: white;
+    width: 100%;
+    max-width: 700px;
+    border-radius: 12px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modalHeader {
+    display: flex;
+    justify-content: space-between;
+    padding: 20px 25px;
+    border-bottom: 1px solid #eee;
+    background: #f8fafc;
+}
+
+.modalHeader h2 {
+    margin: 0;
+    font-family: 'Merriweather', serif;
+    color: #1e2b5e;
+}
+
+.closeBtn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modalForm {
+    padding: 25px;
+}
+
+.formRow {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+.formGroup {
+    margin-bottom: 15px;
+}
+
+.formGroup label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #475569;
+    font-size: 0.9rem;
+}
+
+.required {
+    color: #dc2626;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroup textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-sizing: border-box;
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.cancelBtn {
+    padding: 10px 20px;
+    background: #e2e8f0;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.saveBtn {
+    padding: 10px 20px;
+    background: #27ae60;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
