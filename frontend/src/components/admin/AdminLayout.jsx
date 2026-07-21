@@ -36,7 +36,7 @@ export default function AdminLayout() {
             <UPLogo size="sm" />
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
-              <p className="text-xs text-slate-400 leading-tight">Student Welfare Management</p>
+              <p className="text-xs text-slate-400 leading-tight">Faculty of Engineering · Department of Computer Engineering</p>
             </div>
           </div>
 

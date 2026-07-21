@@ -41,7 +41,7 @@ export default function LoginPage() {
               <UPLogo size="lg" />
             </div>
             <h1 className="text-xl font-bold text-slate-800">University of Peradeniya</h1>
-            <p className="text-sm text-slate-500">Student Welfare Management System</p>
+            <p className="text-sm text-slate-500">Faculty of Engineering · Department of Computer Engineering</p>
           </div>
 
           {/* Form */}
@@ -82,12 +82,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="text-center">
-            <Link to="/" className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-800 hover:underline">
-              Back to Home
-            </Link>
-          </div>
-
           {/* Divider */}
           <div className="text-center">
             <p className="text-xs text-slate-400 mb-3">Don't have an account?</p>
@@ -102,13 +96,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Demo credentials */}
-        <div className="mt-4 bg-purple-50 border border-purple-100 rounded-xl p-4 text-xs text-slate-600 space-y-1">
-          <p className="font-semibold text-purple-700 mb-2">Demo Credentials</p>
-          <p><span className="font-medium">Admin:</span> admin@welfare.pdn.ac.lk / password</p>
-          <p><span className="font-medium">Student:</span> anjana@student.pdn.ac.lk / password</p>
-          <p><span className="font-medium">Donor:</span> neil@donor.pdn.ac.lk / password</p>
-        </div>
       </div>
     </div>
   )

@@ -6,6 +6,7 @@ import {
 } from '../middleware/auth.js'
 
 const router = express.Router()
+const ISSUE_CATEGORIES = ['Scholarship Issue', 'Document Issue', 'System Issue', 'Application Inquiry']
 
 function cleanText(value) {
   return typeof value === 'string'
@@ -818,6 +819,80 @@ router.get(
         message:
           err.message ||
           'Failed to load progress updates',
+      })
+    }
+  }
+)
+
+// GET /api/donor/issues
+router.get(
+  '/issues',
+  authenticate,
+  requireDonor,
+  async (req, res) => {
+    try {
+      const result = await query(
+        `SELECT id, title, description, category, status, admin_reply, created_at, updated_at
+         FROM issues
+         WHERE reported_by = $1
+         ORDER BY created_at DESC`,
+        [req.user.id]
+      )
+      return res.json(result.rows)
+    } catch (err) {
+      return res.status(500).json({
+        message: err.message || 'Failed to load donor issues',
+      })
+    }
+  }
+)
+
+// POST /api/donor/issues
+router.post(
+  '/issues',
+  authenticate,
+  requireDonor,
+  async (req, res) => {
+    try {
+      const title = cleanText(req.body.title)
+      const description = cleanText(req.body.description)
+      const category = cleanText(req.body.category)
+
+      if (!title) {
+        return res.status(400).json({
+          message: 'Issue title is required',
+        })
+      }
+
+      if (!description) {
+        return res.status(400).json({
+          message: 'Issue description is required',
+        })
+      }
+
+      if (!ISSUE_CATEGORIES.includes(category)) {
+        return res.status(400).json({
+          message: 'Invalid issue category',
+        })
+      }
+
+      const result = await query(
+        `INSERT INTO issues (
+           title,
+           description,
+           category,
+           status,
+           reported_by
+         )
+         VALUES ($1, $2, $3, 'Open', $4)
+         RETURNING id, title, description, category, status, admin_reply, created_at, updated_at`,
+        [title, description, category, req.user.id]
+      )
+
+      return res.status(201).json(result.rows[0])
+    } catch (err) {
+      return res.status(500).json({
+        message: err.message || 'Failed to create donor issue',
       })
     }
   }

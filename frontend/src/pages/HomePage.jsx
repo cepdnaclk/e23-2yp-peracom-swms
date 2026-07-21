@@ -27,7 +27,7 @@ function Navbar() {
           <UPLogo size="sm" />
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
-            <p className="text-xs text-slate-400 leading-tight">Student Welfare Management</p>
+            <p className="text-xs text-slate-400 leading-tight">Faculty of Engineering · Department of Computer Engineering</p>
           </div>
         </div>
 
@@ -81,7 +81,7 @@ function HeroSection() {
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 mb-6">
             <GraduationCap size={14} className="text-purple-200" />
-            <span className="text-xs font-medium text-purple-100">University of Peradeniya</span>
+            <span className="text-xs font-medium text-purple-100">Faculty of Engineering · University of Peradeniya</span>
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-4">
@@ -417,7 +417,7 @@ function HomeFooter() {
               <UPLogo size="sm" />
               <div>
                 <p className="font-bold text-white text-sm">University of Peradeniya</p>
-                <p className="text-xs text-purple-300">Student Welfare Management System</p>
+                <p className="text-xs text-purple-300">Faculty of Engineering · Department of Computer Engineering</p>
               </div>
             </div>
             <p className="text-sm text-purple-300 leading-relaxed">
@@ -453,7 +453,7 @@ function HomeFooter() {
             </div>
             <div className="space-y-1 text-sm text-purple-300">
               <p>welfare@pdn.ac.lk</p>
-              <p>Faculty of Engineering</p>
+              <p>Faculty of Engineering · Department of Computer Engineering</p>
               <p>University of Peradeniya, Sri Lanka</p>
             </div>
           </div>
@@ -463,7 +463,7 @@ function HomeFooter() {
       <div className="border-t border-white/10 bg-[#16124a]">
         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-purple-400">
           <span>© 2026 PeraCom Student Welfare Management System · All Rights Reserved</span>
-          <span>Department of Computer Engineering · University of Peradeniya</span>
+          <span>Faculty of Engineering · Department of Computer Engineering · University of Peradeniya</span>
         </div>
       </div>
     </footer>

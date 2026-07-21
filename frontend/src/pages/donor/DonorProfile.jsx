@@ -33,7 +33,7 @@ export default function DonorProfile() {
           <h2 className="text-lg font-bold text-slate-800">{profile.name}</h2>
           <p className="text-sm text-slate-500">{profile.email}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="badge-purple">Doner</span>
+            <span className="badge-purple">Donor</span>
             {profile.organization && <span className="text-xs text-slate-400">{profile.organization}</span>}
           </div>
         </div>

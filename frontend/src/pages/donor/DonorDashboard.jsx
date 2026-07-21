@@ -26,7 +26,7 @@ export default function DonorDashboard() {
     }).finally(() => setLoading(false))
   }, [])
 
-  const firstName = user?.name?.split(' ')[0] || 'Doner'
+  const firstName = user?.name?.split(' ')[0] || 'Donor'
 
   return (
     <div className="space-y-8">

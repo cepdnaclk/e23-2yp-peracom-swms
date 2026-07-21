@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { BookOpen, FileText, BarChart2, User, LayoutDashboard, Bell, LogOut, Menu, X } from 'lucide-react'
+import { BookOpen, FileText, BarChart2, User, LayoutDashboard, Bell, LogOut, Menu, X, AlertCircle } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { UPLogo } from '../common/UPLogo'
 import { Footer } from '../common/Footer'
@@ -10,6 +10,7 @@ const navLinks = [
   { to: '/student/scholarships', label: 'Scholarships', icon: BookOpen },
   { to: '/student/applications', label: 'Applications', icon: FileText },
   { to: '/student/progress', label: 'Progress', icon: BarChart2 },
+  { to: '/student/issues', label: 'Issues', icon: AlertCircle },
   { to: '/student/profile', label: 'Profile', icon: User },
 ]
 
@@ -27,7 +28,7 @@ export default function StudentLayout() {
             <UPLogo size="sm" />
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
-              <p className="text-xs text-slate-400 leading-tight">Student Portal</p>
+              <p className="text-xs text-slate-400 leading-tight">Faculty of Engineering · Department of Computer Engineering</p>
             </div>
           </div>
 

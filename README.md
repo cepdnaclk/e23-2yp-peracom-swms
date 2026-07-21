@@ -180,6 +180,8 @@ GET  /api/student/applications
 POST /api/student/applications
 GET  /api/student/progress-reports
 POST /api/student/progress-reports
+GET  /api/student/issues
+POST /api/student/issues
 ```
 
 ### Donor Portal
@@ -193,6 +195,8 @@ GET  /api/donor/students
 POST /api/donor/students/:id/decision
 GET  /api/donor/announcements
 GET  /api/donor/progress-updates
+GET  /api/donor/issues
+POST /api/donor/issues
 ```
 
 ### Admin

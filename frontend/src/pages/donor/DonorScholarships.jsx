@@ -313,14 +313,14 @@ description: r.description || '',
     </p>
   </div>
 </div>
-            {/* Section 5: Doner Information */}
+            {/* Section 5: Donor Information */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h3 className="text-sm font-bold text-purple-700 pb-1.5 border-b border-slate-100 flex items-center gap-1.5">
-                <Info size={16} /> Section 5: Doner Information
+                <Info size={16} /> Section 5: Donor Information
               </h3>
               <div className="grid sm:grid-cols-2 gap-4 bg-slate-50/70 p-4 rounded-xl border border-slate-100">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">Doner Name</label>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Donor Name</label>
                   <input type="text" readOnly value={profile?.name || ''} className="input-field bg-slate-100/50 text-slate-600 border-slate-200 cursor-not-allowed" />
                 </div>
                 <div>

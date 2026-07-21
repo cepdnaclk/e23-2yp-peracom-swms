@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   LayoutDashboard, BookOpen, Users, Megaphone,
-  User, Bell, LogOut, Menu, X, CreditCard
+  User, Bell, LogOut, Menu, X, CreditCard, AlertCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { UPLogo } from '../common/UPLogo'
@@ -13,6 +13,7 @@ const navLinks = [
   { to: '/donor/scholarships',  label: 'Scholarships', icon: BookOpen },
   { to: '/donor/students',      label: 'Students',    icon: Users },
   { to: '/donor/payments',      label: 'Payments',    icon: CreditCard },
+  { to: '/donor/issues',        label: 'Issues',      icon: AlertCircle },
   { to: '/donor/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/donor/profile',       label: 'Profile',     icon: User },
 ]
@@ -31,7 +32,7 @@ export default function DonorLayout() {
             <UPLogo size="sm" />
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
-              <p className="text-xs text-slate-400 leading-tight">Doner Portal</p>
+              <p className="text-xs text-slate-400 leading-tight">Faculty of Engineering · Department of Computer Engineering</p>
             </div>
           </div>
 

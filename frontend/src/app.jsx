@@ -36,6 +36,7 @@ import MyApplications from './pages/student/MyApplications'
 import StudentProfile from './pages/student/StudentProfile'
 import ProgressReports from './pages/student/ProgressReports'
 import StudentPaymentPage from './pages/student/StudentPaymentPage'
+import StudentIssues from './pages/student/StudentIssues'
 
 // Donor Pages
 import DonorLayout from './components/donor/DonorLayout'
@@ -46,6 +47,7 @@ import DonorApplicationReview from './pages/donor/DonorApplicationReview'
 import DonorPaymentReview from './pages/donor/DonorPaymentReview'
 import DonorAnnouncements from './pages/donor/DonorAnnouncements'
 import DonorProfile from './pages/donor/DonorProfile'
+import DonorIssues from './pages/donor/DonorIssues'
 
 function ProtectedRoute({ children, role }) {
   const { user, loading } = useAuth()
@@ -111,6 +113,7 @@ function AppRoutes() {
         <Route path="payment/:applicationId" element={<StudentPaymentPage />} />
         <Route path="profile" element={<StudentProfile />} />
         <Route path="progress" element={<ProgressReports />} />
+        <Route path="issues" element={<StudentIssues />} />
       </Route>
 
       {/* Donor */}
@@ -122,6 +125,7 @@ function AppRoutes() {
         <Route path="payments" element={<DonorPaymentReview />} />
         <Route path="announcements" element={<DonorAnnouncements />} />
         <Route path="profile" element={<DonorProfile />} />
+        <Route path="issues" element={<DonorIssues />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

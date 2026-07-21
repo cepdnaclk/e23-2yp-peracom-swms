@@ -3,6 +3,7 @@ import { query } from '../config/db.js'
 import { authenticate, requireStudent } from '../middleware/auth.js'
 
 const router = express.Router()
+const ISSUE_CATEGORIES = ['Scholarship Issue', 'Document Issue', 'System Issue', 'Application Inquiry']
 
 // GET /api/student/stats
 router.get('/stats', authenticate, requireStudent, async (req, res) => {
@@ -280,6 +281,44 @@ router.post('/progress-reports', authenticate, requireStudent, async (req, res) 
       `INSERT INTO progress_reports (student_id, application_id, semester, gpa, achievements, activities, comments, status)
        VALUES ($1,$2,$3,$4,$5,$6,$7,'Submitted') RETURNING *`,
       [req.user.id, application_id, semester, gpa || null, achievements, activities, comments])
+    res.status(201).json(result.rows[0])
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// GET /api/student/issues
+router.get('/issues', authenticate, requireStudent, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, title, description, category, status, admin_reply, created_at, updated_at
+       FROM issues
+       WHERE reported_by = $1
+       ORDER BY created_at DESC`,
+      [req.user.id]
+    )
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// POST /api/student/issues
+router.post('/issues', authenticate, requireStudent, async (req, res) => {
+  try {
+    const title = req.body.title?.trim()
+    const description = req.body.description?.trim()
+    const category = req.body.category?.trim()
+
+    if (!title) return res.status(400).json({ message: 'Issue title is required' })
+    if (!description) return res.status(400).json({ message: 'Issue description is required' })
+    if (!category || !ISSUE_CATEGORIES.includes(category)) {
+      return res.status(400).json({ message: 'Invalid issue category' })
+    }
+
+    const result = await query(
+      `INSERT INTO issues (title, description, category, status, reported_by)
+       VALUES ($1, $2, $3, 'Open', $4)
+       RETURNING id, title, description, category, status, admin_reply, created_at, updated_at`,
+      [title, description, category, req.user.id]
+    )
+
     res.status(201).json(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
