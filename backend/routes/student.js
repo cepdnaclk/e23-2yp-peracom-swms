@@ -289,7 +289,7 @@ router.post('/progress-reports', authenticate, requireStudent, async (req, res) 
 router.get('/issues', authenticate, requireStudent, async (req, res) => {
   try {
     const result = await query(
-      `SELECT id, title, description, category, status, admin_reply, created_at, updated_at
+      `SELECT id, title, description, category, batch, status, admin_reply, created_at, updated_at
        FROM issues
        WHERE reported_by = $1
        ORDER BY created_at DESC`,
@@ -305,22 +305,48 @@ router.post('/issues', authenticate, requireStudent, async (req, res) => {
     const title = req.body.title?.trim()
     const description = req.body.description?.trim()
     const category = req.body.category?.trim()
+    const batch = req.body.batch?.trim()
+
+    const VALID_BATCHES = ['E24', 'E23', 'E22', 'E21', 'E20']
 
     if (!title) return res.status(400).json({ message: 'Issue title is required' })
     if (!description) return res.status(400).json({ message: 'Issue description is required' })
     if (!category || !ISSUE_CATEGORIES.includes(category)) {
       return res.status(400).json({ message: 'Invalid issue category' })
     }
+    if (!batch || !VALID_BATCHES.includes(batch)) {
+      return res.status(400).json({ message: 'Invalid batch. Must be one of E24, E23, E22, E21, E20' })
+    }
 
     const result = await query(
-      `INSERT INTO issues (title, description, category, status, reported_by)
-       VALUES ($1, $2, $3, 'Open', $4)
-       RETURNING id, title, description, category, status, admin_reply, created_at, updated_at`,
-      [title, description, category, req.user.id]
+      `INSERT INTO issues (title, description, category, batch, status, reported_by)
+       VALUES ($1, $2, $3, $4, 'Open', $5)
+       RETURNING id, title, description, category, batch, status, admin_reply, created_at, updated_at`,
+      [title, description, category, batch, req.user.id]
     )
 
     res.status(201).json(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// GET /api/student/announcements
+router.get('/announcements', authenticate, requireStudent, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT *
+       FROM announcements
+       WHERE status = 'Published'
+         AND (
+           audience = 'All Users'
+           OR audience = 'Students'
+         )
+       ORDER BY publish_date DESC`
+    )
+    return res.json(result.rows)
+  } catch (err) {
+    console.error('Student announcements error:', err)
+    return res.status(500).json({ message: err.message || 'Failed to load announcements' })
+  }
 })
 
 export default router
