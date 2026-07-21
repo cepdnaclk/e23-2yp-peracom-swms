@@ -1174,7 +1174,7 @@ export default function DonorPaymentReview() {
                 />
 
                 <DetailCard
-                  label="Donor Comments"
+                  label="Doner Comments"
                   value={
                     selected.donor_comments
                   }
@@ -1517,7 +1517,7 @@ export default function DonorPaymentReview() {
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-slate-600 mb-1.5">
-                        Donor Comments
+                        Doner Comments
                       </label>
 
                       <textarea

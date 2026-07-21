@@ -82,6 +82,12 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <div className="text-center">
+            <Link to="/" className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-800 hover:underline">
+              Back to Home
+            </Link>
+          </div>
+
           {/* Divider */}
           <div className="text-center">
             <p className="text-xs text-slate-400 mb-3">Don't have an account?</p>

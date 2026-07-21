@@ -10,44 +10,58 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- USERS (all roles: admin, student, donor)
 -- ============================================================
 CREATE TABLE IF NOT EXISTS users (
-  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  name                VARCHAR(255) NOT NULL,
-  email               VARCHAR(255) UNIQUE NOT NULL,
-  password_hash       TEXT NOT NULL,
-  email               VARCHAR(255) UNIQUE NOT NULL,
-password_hash       TEXT NOT NULL,
+  id                         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name                       VARCHAR(255) NOT NULL,
+  email                      VARCHAR(255) UNIQUE NOT NULL,
+  password_hash              TEXT NOT NULL,
 
-email_verified               BOOLEAN NOT NULL DEFAULT FALSE,
-email_verification_token     TEXT,
-email_verification_expires   TIMESTAMPTZ,
-email_verified_at            TIMESTAMPTZ,
+  email_verified             BOOLEAN NOT NULL DEFAULT FALSE,
+  email_verification_token   TEXT,
+  email_verification_expires TIMESTAMPTZ,
+  email_verified_at          TIMESTAMPTZ,
 
-role                VARCHAR(20) NOT NULL
-  role                VARCHAR(20) NOT NULL CHECK (role IN ('admin','student','donor')),
-  status              VARCHAR(30) NOT NULL DEFAULT 'pending_approval'
-                      CHECK (status IN ('pending_approval','approved','rejected','suspended')),
+  role                       VARCHAR(20) NOT NULL
+                             CHECK (role IN ('admin','student','donor')),
+
+  status                     VARCHAR(30) NOT NULL DEFAULT 'pending_approval'
+                             CHECK (
+                               status IN (
+                                 'pending_approval',
+                                 'approved',
+                                 'rejected',
+                                 'suspended'
+                               )
+                             ),
+
   -- Student fields
-  phone               VARCHAR(30),
-  department          VARCHAR(255),
-  batch               VARCHAR(20),
-  registration_number VARCHAR(50),
-  current_year        VARCHAR(50),
-  gpa                 NUMERIC(4,2),
-  monthly_income      NUMERIC(12,2),
-  num_dependents      INTEGER,
-  address             TEXT,
+  phone                      VARCHAR(30),
+  department                 VARCHAR(255),
+  batch                      VARCHAR(20),
+  registration_number        VARCHAR(50),
+  current_year               VARCHAR(50),
+  gpa                        NUMERIC(4,2),
+  monthly_income             NUMERIC(12,2),
+  num_dependents             INTEGER,
+  address                    TEXT,
+
   -- Donor fields
-  organization        VARCHAR(255),
-  available_fund      NUMERIC(14,2) DEFAULT 0,
-  total_contribution  NUMERIC(14,2) DEFAULT 0,
-  notes               TEXT,
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ DEFAULT NOW()
+  organization               VARCHAR(255),
+  available_fund             NUMERIC(14,2) DEFAULT 0,
+  total_contribution         NUMERIC(14,2) DEFAULT 0,
+  notes                      TEXT,
+
+  created_at                 TIMESTAMPTZ DEFAULT NOW(),
+  updated_at                 TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_users_role  ON users(role);
-CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_email
+ON users(email);
+
+CREATE INDEX IF NOT EXISTS idx_users_role
+ON users(role);
+
+CREATE INDEX IF NOT EXISTS idx_users_status
+ON users(status);
 
 -- ============================================================
 -- SCHOLARSHIPS
@@ -209,20 +223,91 @@ CREATE INDEX IF NOT EXISTS idx_announcements_status ON announcements(status);
 -- ISSUES
 -- ============================================================
 CREATE TABLE IF NOT EXISTS issues (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  title         VARCHAR(255) NOT NULL,
-  description   TEXT,
-  category      VARCHAR(50) NOT NULL
-                CHECK (category IN ('Scholarship Issue','Document Issue','System Issue','Application Inquiry')),
-  status        VARCHAR(20) NOT NULL DEFAULT 'Open'
-                CHECK (status IN ('Open','In Progress','Resolved','Draft')),
-  reported_by   UUID REFERENCES users(id) ON DELETE SET NULL,
-  admin_reply   TEXT,
-  created_at    TIMESTAMPTZ DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ DEFAULT NOW()
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+  title VARCHAR(255) NOT NULL,
+  description TEXT NOT NULL,
+
+  category VARCHAR(50) NOT NULL
+    CHECK (
+      category IN (
+        'Scholarship Issue',
+        'Document Issue',
+        'Payment Issue',
+        'Application Inquiry',
+        'Account Issue',
+        'System Issue',
+        'Other'
+      )
+    ),
+
+  priority VARCHAR(20) NOT NULL DEFAULT 'Medium'
+    CHECK (
+      priority IN ('Low', 'Medium', 'High')
+    ),
+
+  status VARCHAR(30) NOT NULL DEFAULT 'Open'
+    CHECK (
+      status IN (
+        'Open',
+        'Assigned',
+        'In Progress',
+        'Waiting for User',
+        'Resolved',
+        'Closed'
+      )
+    ),
+
+  reported_by UUID
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  assigned_admin UUID
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  -- Kept temporarily for compatibility with the old admin page.
+  admin_reply TEXT,
+
+  resolved_at TIMESTAMPTZ,
+  closed_at TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_issues_status ON issues(status);
+CREATE INDEX IF NOT EXISTS idx_issues_status
+ON issues(status);
+
+CREATE INDEX IF NOT EXISTS idx_issues_priority
+ON issues(priority);
+
+CREATE INDEX IF NOT EXISTS idx_issues_reported_by
+ON issues(reported_by);
+
+-- ============================================================
+-- ISSUE MESSAGES
+-- ============================================================
+CREATE TABLE IF NOT EXISTS issue_messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+  issue_id UUID NOT NULL
+    REFERENCES issues(id)
+    ON DELETE CASCADE,
+
+  sender_id UUID
+    REFERENCES users(id)
+    ON DELETE SET NULL,
+
+  message TEXT NOT NULL,
+  attachment_url TEXT,
+  attachment_name VARCHAR(255),
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_issue_messages_issue
+ON issue_messages(issue_id);
 
 -- ============================================================
 -- SEED DATA
@@ -302,32 +387,42 @@ VALUES (
 ) ON CONFLICT DO NOTHING;
 
 -- Demo issue
-INSERT INTO issues (title, description, category, status)
+INSERT INTO issues (
+  title,
+  description,
+  category,
+  priority,
+  status
+)
 VALUES (
   'Unable to upload income certificate',
   'I am trying to upload my income certificate but the upload button is not responding. Please help.',
   'Document Issue',
+  'Medium',
   'Open'
-) ON CONFLICT DO NOTHING;
+)
+ON CONFLICT DO NOTHING;
 
 
--- Allow authenticated users to upload
+-- Storage policies
+DROP POLICY IF EXISTS "Allow authenticated uploads" ON storage.objects;
 CREATE POLICY "Allow authenticated uploads"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'welfare-docs');
 
--- Allow public to view/download files
+DROP POLICY IF EXISTS "Allow public read" ON storage.objects;
 CREATE POLICY "Allow public read"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'welfare-docs');
 
--- Allow users to update their own files
+DROP POLICY IF EXISTS "Allow authenticated updates" ON storage.objects;
 CREATE POLICY "Allow authenticated updates"
 ON storage.objects FOR UPDATE
 TO authenticated
-USING (bucket_id = 'welfare-docs');
+USING (bucket_id = 'welfare-docs')
+WITH CHECK (bucket_id = 'welfare-docs');
 
 -- ============================================================
 -- Migration 001 — Application Review Module Updates
@@ -504,7 +599,7 @@ ON CONFLICT (application_id) DO NOTHING;
 -- scholarship_payments stores donor transfer information.
 
 CREATE TABLE IF NOT EXISTS scholarship_payments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   application_id UUID NOT NULL
     REFERENCES applications(id)

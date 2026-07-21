@@ -31,7 +31,7 @@ export default function DonorLayout() {
             <UPLogo size="sm" />
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
-              <p className="text-xs text-slate-400 leading-tight">Donor Portal</p>
+              <p className="text-xs text-slate-400 leading-tight">Doner Portal</p>
             </div>
           </div>
 
