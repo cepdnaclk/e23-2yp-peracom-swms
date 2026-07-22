@@ -214,6 +214,7 @@ CREATE TABLE IF NOT EXISTS issues (
   description   TEXT,
   category      VARCHAR(50) NOT NULL
                 CHECK (category IN ('Scholarship Issue','Document Issue','System Issue','Application Inquiry')),
+  batch         VARCHAR(10) CHECK (batch IN ('E24','E23','E22','E21','E20')),
   status        VARCHAR(20) NOT NULL DEFAULT 'Open'
                 CHECK (status IN ('Open','In Progress','Resolved','Draft')),
   reported_by   UUID REFERENCES users(id) ON DELETE SET NULL,

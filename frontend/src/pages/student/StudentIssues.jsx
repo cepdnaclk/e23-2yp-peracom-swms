@@ -6,12 +6,13 @@ import api from '../../services/api'
 import { StatusBadge } from '../../components/common/StatusBadge'
 
 const ISSUE_CATEGORIES = ['Scholarship Issue', 'Document Issue', 'System Issue', 'Application Inquiry']
+const BATCHES = ['E24', 'E23', 'E22', 'E21', 'E20']
 
 export default function StudentIssues() {
   const [issues, setIssues] = useState([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
-  const [form, setForm] = useState({ title: '', category: ISSUE_CATEGORIES[0], description: '' })
+  const [form, setForm] = useState({ title: '', category: ISSUE_CATEGORIES[0], batch: BATCHES[0], description: '' })
 
   const loadIssues = () => {
     setLoading(true)
@@ -33,7 +34,7 @@ export default function StudentIssues() {
     try {
       await api.post('/student/issues', form)
       toast.success('Issue submitted successfully')
-      setForm({ title: '', category: ISSUE_CATEGORIES[0], description: '' })
+      setForm({ title: '', category: ISSUE_CATEGORIES[0], batch: BATCHES[0], description: '' })
       loadIssues()
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit issue')
@@ -71,6 +72,16 @@ export default function StudentIssues() {
               onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
             >
               {ISSUE_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Batch</label>
+            <select
+              className="input-field"
+              value={form.batch}
+              onChange={(e) => setForm((prev) => ({ ...prev, batch: e.target.value }))}
+            >
+              {BATCHES.map((batch) => <option key={batch}>{batch}</option>)}
             </select>
           </div>
           <div>

@@ -37,6 +37,7 @@ import StudentProfile from './pages/student/StudentProfile'
 import ProgressReports from './pages/student/ProgressReports'
 import StudentPaymentPage from './pages/student/StudentPaymentPage'
 import StudentIssues from './pages/student/StudentIssues'
+import StudentAnnouncements from './pages/student/StudentAnnouncements'
 
 // Donor Pages
 import DonorLayout from './components/donor/DonorLayout'
@@ -114,6 +115,7 @@ function AppRoutes() {
         <Route path="profile" element={<StudentProfile />} />
         <Route path="progress" element={<ProgressReports />} />
         <Route path="issues" element={<StudentIssues />} />
+        <Route path="announcements" element={<StudentAnnouncements />} />
       </Route>
 
       {/* Donor */}
