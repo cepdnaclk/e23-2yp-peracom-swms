@@ -35,11 +35,20 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+          {/* Back to Home Link */}
+          <div>
+            <Link to="/" className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+              ← Back to Home
+            </Link>
+          </div>
+
           {/* Logo */}
           <div className="text-center space-y-2">
-            <div className="flex justify-center">
-              <UPLogo size="lg" />
-            </div>
+            <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+              <div className="flex justify-center">
+                <UPLogo size="lg" />
+              </div>
+            </Link>
             <h1 className="text-xl font-bold text-slate-800">University of Peradeniya</h1>
             <p className="text-sm text-slate-500">Faculty of Engineering · Department of Computer Engineering</p>
           </div>

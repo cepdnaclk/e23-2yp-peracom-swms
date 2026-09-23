@@ -123,19 +123,23 @@ router.post('/applications', authenticate, requireStudent, async (req, res) => {
 
     // Check for existing non-draft application
     const exists = await query(
-      `SELECT id FROM applications WHERE student_id = $1 AND scholarship_id = $2`,
+      `SELECT id, status FROM applications WHERE student_id = $1 AND scholarship_id = $2`,
       [req.user.id, scholarship_id])
     if (exists.rows.length) {
-      // If draft exists, update it instead
+      const existingApp = exists.rows[0]
+      // If resubmission was requested, reset status to Pending
+      const statusClause = existingApp.status === 'Resubmission Requested'
+        ? `, status = 'Pending', admin_reason = NULL`
+        : ''
       const result = await query(
         `UPDATE applications SET
            student_name=$1, registration_number=$2, batch=$3, email=$4, phone=$5,
            department=$6, current_year=$7, gpa=$8, monthly_income=$9, num_dependents=$10,
-           extra_data=$11, updated_at=NOW()
+           extra_data=$11, updated_at=NOW()${statusClause}
          WHERE id=$12 RETURNING *`,
         [student_name, registration_number, batch, email, phone, department,
          current_year, gpa || null, monthly_income || null, num_dependents || null,
-         extra_data || null, exists.rows[0].id])
+         extra_data || null, existingApp.id])
       return res.json(result.rows[0])
     }
 

@@ -50,8 +50,16 @@ useEffect(() => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 flex items-center justify-center p-4 py-12">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+          <div>
+            <Link to="/" className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+              ← Back to Home
+            </Link>
+          </div>
+
           <div className="text-center space-y-2">
-            <div className="flex justify-center"><UPLogo size="lg" /></div>
+            <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+              <div className="flex justify-center"><UPLogo size="lg" /></div>
+            </Link>
             <h1 className="text-xl font-bold text-slate-800">Student Registration</h1>
           </div>
 

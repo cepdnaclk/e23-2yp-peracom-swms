@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText,
@@ -13,12 +13,19 @@ import {
   CreditCard,
   Clock,
   CheckCircle,
+  Search,
+  ChevronDown,
+  CalendarDays,
+  ArrowUpDown,
+  BookOpen,
+  Sparkles,
+  RotateCcw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { StatusBadge } from '../../components/common/StatusBadge'
 import { viewDocument } from '../../utils/viewDocument'
 import api from '../../services/api'
-import { format } from 'date-fns'
+import { format, formatDistanceToNow, isAfter, isBefore, parseISO } from 'date-fns'
 
 
 const TABS = [
@@ -35,6 +42,7 @@ const TABS = [
   'Rejected',
   'Resubmission Requested',
 ]
+
 const REQUIRED_DOCS = [
   'NIC Copy',
   'Academic Transcript',
@@ -43,112 +51,128 @@ const REQUIRED_DOCS = [
   'University ID Copy',
 ]
 
-// ── Progress bar
-function ProgressBar({ status }) {
-  const config = {
-    Pending: {
-      width: '15%',
-      color: 'bg-amber-400',
-    },
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'oldest', label: 'Oldest First' },
+  { value: 'amount_desc', label: 'Amount: High to Low' },
+  { value: 'amount_asc', label: 'Amount: Low to High' },
+]
 
-    'Under Admin Review': {
-      width: '25%',
-      color: 'bg-blue-400',
-    },
+// ── Status helpers
+const STATUS_COLORS = {
+  'Pending':                    { border: 'border-l-amber-400',  bg: 'bg-amber-50/40',   dot: 'bg-amber-400',   pulse: true  },
+  'Under Admin Review':         { border: 'border-l-blue-400',   bg: 'bg-blue-50/30',    dot: 'bg-blue-500',    pulse: true  },
+  'Resubmission Requested':     { border: 'border-l-orange-400', bg: 'bg-orange-50/30',  dot: 'bg-orange-400',  pulse: true  },
+  'Awaiting Payment Details':   { border: 'border-l-purple-400', bg: 'bg-purple-50/30',  dot: 'bg-purple-500',  pulse: true  },
+  'Payment Details Submitted':  { border: 'border-l-blue-500',   bg: 'bg-blue-50/30',    dot: 'bg-blue-500',    pulse: true  },
+  'Payment Correction Required':{ border: 'border-l-red-400',    bg: 'bg-red-50/30',     dot: 'bg-red-500',     pulse: true  },
+  'Payment Details Verified':   { border: 'border-l-green-400',  bg: 'bg-green-50/30',   dot: 'bg-green-500',   pulse: false },
+  'Assigned to Donor':          { border: 'border-l-indigo-500', bg: 'bg-indigo-50/30',  dot: 'bg-indigo-500',  pulse: true  },
+  'Payment Processing':         { border: 'border-l-blue-600',   bg: 'bg-blue-50/30',    dot: 'bg-blue-600',    pulse: true  },
+  'Completed':                  { border: 'border-l-green-500',  bg: 'bg-green-50/20',   dot: 'bg-green-600',   pulse: false },
+  'Rejected':                   { border: 'border-l-red-500',    bg: 'bg-red-50/20',     dot: 'bg-red-500',     pulse: false },
+}
 
-    'Resubmission Requested': {
-      width: '25%',
-      color: 'bg-orange-400',
-    },
+// ── Step Tracker
+const STEPS = [
+  { key: 'applied',    label: 'Applied',        statuses: ['Pending'] },
+  { key: 'review',     label: 'Admin Review',   statuses: ['Under Admin Review', 'Resubmission Requested'] },
+  { key: 'payment',    label: 'Payment Setup',  statuses: ['Awaiting Payment Details', 'Payment Details Submitted', 'Payment Correction Required', 'Payment Details Verified'] },
+  { key: 'assigned',   label: 'Assigned',       statuses: ['Assigned to Donor', 'Payment Processing'] },
+  { key: 'completed',  label: 'Completed',      statuses: ['Completed', 'Rejected'] },
+]
 
-    'Awaiting Payment Details': {
-      width: '40%',
-      color: 'bg-purple-400',
-    },
-
-    'Payment Details Submitted': {
-      width: '55%',
-      color: 'bg-blue-500',
-    },
-
-    'Payment Correction Required': {
-      width: '50%',
-      color: 'bg-red-400',
-    },
-
-    'Payment Details Verified': {
-      width: '70%',
-      color: 'bg-green-500',
-    },
-
-    'Assigned to Donor': {
-      width: '82%',
-      color: 'bg-purple-500',
-    },
-
-    'Payment Processing': {
-      width: '92%',
-      color: 'bg-blue-600',
-    },
-
-    Completed: {
-      width: '100%',
-      color: 'bg-green-600',
-    },
-
-    Rejected: {
-      width: '100%',
-      color: 'bg-red-500',
-    },
+function getStepIndex(status) {
+  for (let i = 0; i < STEPS.length; i++) {
+    if (STEPS[i].statuses.includes(status)) return i
   }
+  return 0
+}
 
-  const current =
-    config[status] || {
-      width: '10%',
-      color: 'bg-slate-300',
-    }
+function StepTracker({ status }) {
+  const currentIndex = getStepIndex(status)
+  const isRejected   = status === 'Rejected'
+  const isCompleted  = status === 'Completed'
 
   return (
-    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all ${current.color}`}
-        style={{
-          width: current.width,
-        }}
-      />
+    <div className="mt-4 px-1">
+      <div className="flex items-center justify-between relative">
+        {/* connector line */}
+        <div className="absolute top-3 left-0 right-0 h-px bg-slate-200 z-0" />
+        <div
+          className={`absolute top-3 left-0 h-px z-0 transition-all duration-700 ${
+            isRejected ? 'bg-red-400' : 'bg-gradient-to-r from-purple-500 to-purple-300'
+          }`}
+          style={{ width: currentIndex === 0 ? '0%' : `${(currentIndex / (STEPS.length - 1)) * 100}%` }}
+        />
+
+        {STEPS.map((step, idx) => {
+          const isDone    = idx < currentIndex
+          const isCurrent = idx === currentIndex
+          const isFuture  = idx > currentIndex
+          const isLastRejected = isRejected && idx === currentIndex
+
+          return (
+            <div key={step.key} className="flex flex-col items-center z-10 gap-1" style={{ flex: 1 }}>
+              {/* dot */}
+              <div
+                className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all duration-500 ${
+                  isLastRejected
+                    ? 'bg-red-500 text-white ring-2 ring-red-200'
+                    : isDone
+                    ? 'bg-purple-600 text-white'
+                    : isCurrent
+                    ? 'bg-purple-600 text-white ring-4 ring-purple-100'
+                    : 'bg-slate-200 text-slate-400'
+                }`}
+              >
+                {isLastRejected ? '✕' : isDone ? '✓' : idx + 1}
+              </div>
+              {/* label */}
+              <span
+                className={`text-[9px] font-semibold text-center leading-tight transition-colors ${
+                  isLastRejected
+                    ? 'text-red-500'
+                    : isCurrent
+                    ? 'text-purple-700'
+                    : isDone
+                    ? 'text-slate-600'
+                    : 'text-slate-400'
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
 
 // ══════════════════════════════════════════════════════════════
 export default function MyApplications() {
-  const [apps, setApps] = useState([])
-  const [tab, setTab] = useState('All')
-  const [loading, setLoading] = useState(true)
+  const [apps, setApps]             = useState([])
+  const [tab, setTab]               = useState('All')
+  const [loading, setLoading]       = useState(true)
   const [selectedApp, setSelectedApp] = useState(null)
+  const [search, setSearch]         = useState('')
+  const [sortBy, setSortBy]         = useState('newest')
+  const [dateFrom, setDateFrom]     = useState('')
+  const [dateTo, setDateTo]         = useState('')
+  const [showFilters, setShowFilters] = useState(false)
+  const tabsRef = useRef(null)
 
   const loadApps = () => {
     setLoading(true)
-
     api
       .get('/student/applications')
       .then(response => {
-        setApps(
-          Array.isArray(response.data)
-            ? response.data
-            : []
-        )
+        setApps(Array.isArray(response.data) ? response.data : [])
       })
       .catch(error => {
-        console.error(
-          'Load student applications error:',
-          error
-        )
-
-        toast.error(
-          error?.response?.data?.message ||
-            'Failed to load applications'
-        )
+        console.error('Load student applications error:', error)
+        toast.error(error?.response?.data?.message || 'Failed to load applications')
       })
       .finally(() => setLoading(false))
   }
@@ -159,183 +183,412 @@ export default function MyApplications() {
     return acc
   }, {})
 
-  const filtered = tab === 'All' ? apps : apps.filter(a => a.status === tab)
+  // ── Apply all filters
+  const filtered = (() => {
+    let result = tab === 'All' ? apps : apps.filter(a => a.status === tab)
+
+    // search
+    if (search.trim()) {
+      const q = search.trim().toLowerCase()
+      result = result.filter(a =>
+        a.scholarship_title?.toLowerCase().includes(q)
+      )
+    }
+
+    // date range
+    if (dateFrom) {
+      const from = parseISO(dateFrom)
+      result = result.filter(a => a.created_at && !isBefore(new Date(a.created_at), from))
+    }
+    if (dateTo) {
+      const to = parseISO(dateTo)
+      result = result.filter(a => a.created_at && !isAfter(new Date(a.created_at), to))
+    }
+
+    // sort
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'newest') return new Date(b.created_at) - new Date(a.created_at)
+      if (sortBy === 'oldest') return new Date(a.created_at) - new Date(b.created_at)
+      if (sortBy === 'amount_desc') return (Number(b.funding_amount) || 0) - (Number(a.funding_amount) || 0)
+      if (sortBy === 'amount_asc')  return (Number(a.funding_amount) || 0) - (Number(b.funding_amount) || 0)
+      return 0
+    })
+
+    return result
+  })()
+
+  const hasActiveFilters = search || dateFrom || dateTo || sortBy !== 'newest'
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="page-title">My Applications</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Track your scholarship applications.
-        </p>
-      </div>
-
-      {/* Status Tabs */}
-      <div className="flex gap-2 flex-wrap">
-        {TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors
-              ${tab === t
-                ? 'bg-purple-600 text-white'
-                : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300'}`}>
-            {t} {counts[t] > 0 ? `(${counts[t]})` : ''}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="text-center py-12 text-slate-400">Loading applications...</div>
-      ) : filtered.length === 0 ? (
-        <div className="card p-12 text-center space-y-3">
-          <FileText size={40} className="text-slate-200 mx-auto" />
-          <p className="text-slate-400">No applications found.</p>
-          <Link to="/student/scholarships" className="btn-primary inline-block">
-            Browse Scholarships
-          </Link>
+    <div className="space-y-5">
+      {/* Page Header */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="page-title">My Applications</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            Track every step of your scholarship journey.
+          </p>
         </div>
-      ) : (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Summary pill */}
+          {!loading && (
+            <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs">
+              <span className="font-semibold text-slate-700">{apps.length} Total</span>
+              {apps.filter(a => ['Pending','Under Admin Review','Resubmission Requested'].includes(a.status)).length > 0 && (
+                <span className="text-amber-600 font-semibold">
+                  {apps.filter(a => ['Pending','Under Admin Review','Resubmission Requested'].includes(a.status)).length} Active
+                </span>
+              )}
+              {apps.filter(a => a.status === 'Completed').length > 0 && (
+                <span className="text-green-600 font-semibold">
+                  {apps.filter(a => a.status === 'Completed').length} Completed
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Search + Filter Bar */}
+      <div className="space-y-3">
+        <div className="flex gap-2 flex-wrap">
+          {/* Search input */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by scholarship name…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all placeholder:text-slate-400"
+            />
+          </div>
+
+          {/* Sort dropdown */}
+          <div className="relative">
+            <ArrowUpDown size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              className="pl-8 pr-7 py-2.5 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-purple-300 appearance-none cursor-pointer text-slate-700 font-medium"
+            >
+              {SORT_OPTIONS.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          </div>
+
+          {/* Date range toggle */}
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-sm font-medium border transition-all ${
+              showFilters || dateFrom || dateTo
+                ? 'bg-purple-600 text-white border-purple-600'
+                : 'bg-white text-slate-600 border-slate-200 hover:border-purple-300'
+            }`}
+          >
+            <CalendarDays size={14} />
+            <span className="hidden sm:inline">Date Range</span>
+            {(dateFrom || dateTo) && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />}
+          </button>
+
+          {/* Clear filters */}
+          {hasActiveFilters && (
+            <button
+              onClick={() => { setSearch(''); setSortBy('newest'); setDateFrom(''); setDateTo(''); }}
+              className="px-3.5 py-2.5 rounded-xl text-sm font-medium bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors flex items-center gap-1"
+            >
+              <X size={13} /> Clear
+            </button>
+          )}
+        </div>
+
+        {/* Date range inputs */}
+        {showFilters && (
+          <div className="flex gap-3 flex-wrap p-3 bg-purple-50/60 border border-purple-100 rounded-xl">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">From:</label>
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+                className="text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-slate-500 whitespace-nowrap">To:</label>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+                className="text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Status Tabs — desktop: scrollable pills, mobile: dropdown */}
+      <div>
+        {/* Mobile dropdown */}
+        <div className="block md:hidden relative">
+          <select
+            value={tab}
+            onChange={e => setTab(e.target.value)}
+            className="w-full pl-4 pr-8 py-2.5 text-sm border border-slate-200 rounded-xl bg-white font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-purple-300 appearance-none"
+          >
+            {TABS.map(t => (
+              <option key={t} value={t}>{t}{counts[t] > 0 ? ` (${counts[t]})` : ''}</option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+
+        {/* Desktop scrollable pills */}
+        <div
+          ref={tabsRef}
+          className="hidden md:flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+          style={{ scrollbarWidth: 'none' }}
+        >
+          {TABS.map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex-shrink-0 ${
+                tab === t
+                  ? 'bg-purple-600 text-white shadow-sm shadow-purple-200'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:border-purple-300 hover:text-purple-600'
+              }`}
+            >
+              {t}
+              {counts[t] > 0 && (
+                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  tab === t ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {counts[t]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Results count */}
+      {!loading && apps.length > 0 && (
+        <p className="text-xs text-slate-400">
+          Showing <span className="font-semibold text-slate-600">{filtered.length}</span> of{' '}
+          <span className="font-semibold text-slate-600">{apps.length}</span> application{apps.length !== 1 ? 's' : ''}
+        </p>
+      )}
+
+      {/* Content */}
+      {loading ? (
+        /* Skeleton loader */
         <div className="space-y-4">
-          {filtered.map(app => (
-            <div key={app.id} className="card hover:shadow-md transition-shadow">
-              <div className="p-5">
-                <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center flex-shrink-0">
-                    <FileText size={18} className="text-purple-600" />
+          {[1, 2, 3].map(i => (
+            <div key={i} className="card p-5 animate-pulse">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-100 flex-shrink-0" />
+                <div className="flex-1 space-y-3">
+                  <div className="flex justify-between gap-4">
+                    <div className="h-4 bg-slate-100 rounded w-48" />
+                    <div className="h-4 bg-slate-100 rounded w-20" />
                   </div>
-
-                  <div className="flex-1 min-w-0">
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-3 flex-wrap">
-                      <div>
-                        <h3 className="font-semibold text-slate-800">{app.scholarship_title}</h3>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Applied {app.created_at ? format(new Date(app.created_at), 'MMM d, yyyy') : '—'}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-3 flex-shrink-0">
-                        {app.funding_amount && (
-                          <span className="text-sm font-bold text-green-600">
-                            LKR {Number(app.funding_amount).toLocaleString()}
-                          </span>
-                        )}
-                        <StatusBadge status={app.status} />
-                      </div>
-                    </div>
-
-                    {/* Admin note */}
-                    {app.admin_reason && (
-                      <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-1.5">
-                        <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
-                        <span><span className="font-semibold">Admin note:</span> {app.admin_reason}</span>
-                      </div>
-                    )}
-
-                    {/* Student workflow action */}
-{app.status === 'Awaiting Payment Details' && (
-  <Link
-    to={`/student/payment/${app.id}`}
-    className="mt-3 flex items-center justify-between gap-2 bg-gradient-to-r from-purple-700 to-purple-500 rounded-xl px-4 py-3 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
-  >
-    <span>
-      Your application passed the admin review. Submit your bank details.
-    </span>
-
-    <span className="underline whitespace-nowrap flex-shrink-0">
-      Submit Details →
-    </span>
-  </Link>
-)}
-
-{app.status === 'Payment Correction Required' && (
-  <Link
-    to={`/student/payment/${app.id}`}
-    className="mt-3 flex items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
-  >
-    <span>
-      Your payment details require correction. Review the admin instructions and resubmit.
-    </span>
-
-    <span className="underline whitespace-nowrap flex-shrink-0">
-      Correct Details →
-    </span>
-  </Link>
-)}
-
-{app.status === 'Payment Details Submitted' && (
-  <Link
-    to={`/student/payment/${app.id}`}
-    className="mt-3 flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
-  >
-    <span>
-      Payment details submitted and waiting for admin verification.
-    </span>
-
-    <span className="underline whitespace-nowrap flex-shrink-0">
-      View →
-    </span>
-  </Link>
-)}
-
-{app.status === 'Payment Details Verified' && (
-  <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
-    <CheckCircle size={14} />
-
-    Payment details verified. Waiting for donor assignment.
-  </div>
-)}
-
-{app.status === 'Assigned to Donor' && (
-  <div className="mt-3 flex items-center justify-between gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-purple-700 text-xs font-semibold">
-    <span>
-      Your application has been assigned to the scholarship donor.
-    </span>
-
-    <span>
-      Payment pending
-    </span>
-  </div>
-)}
-
-{app.status === 'Payment Processing' && (
-  <div className="mt-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold">
-    <Clock size={14} />
-
-    Your scholarship payment is being processed.
-  </div>
-)}
-
-{app.status === 'Completed' && (
-  <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
-    <CheckCircle size={14} />
-
-    Scholarship payment completed successfully.
-  </div>
-)}
-
-                    {/* Progress bar */}
-                    <div className="mt-3 space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>Application Progress</span>
-                        <span>{app.status}</span>
-                      </div>
-                      <ProgressBar status={app.status} />
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-100/50 flex items-center justify-between">
-                      <button
-                        onClick={() => setSelectedApp(app)}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
-                        <Eye size={14} />
-                        View Application
-                      </button>
-                    </div>
-
+                  <div className="h-3 bg-slate-100 rounded w-32" />
+                  <div className="h-2 bg-slate-100 rounded w-full mt-6" />
+                  <div className="flex gap-6 pt-1">
+                    {[1,2,3,4,5].map(j => <div key={j} className="h-5 bg-slate-100 rounded-full flex-1" />)}
                   </div>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        /* Enhanced Empty State */
+        <div className="card p-12 text-center space-y-5">
+          <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center">
+            <BookOpen size={36} className="text-purple-400" />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-lg font-bold text-slate-700">
+              {search || dateFrom || dateTo || tab !== 'All'
+                ? 'No matching applications'
+                : 'No applications yet'}
+            </h3>
+            <p className="text-slate-400 text-sm max-w-xs mx-auto">
+              {search || dateFrom || dateTo || tab !== 'All'
+                ? 'Try adjusting your search or filters to find what you\'re looking for.'
+                : 'Apply for your first scholarship today and take a step towards your academic goals!'}
+            </p>
+          </div>
+          {tab === 'All' && !search && !dateFrom && !dateTo ? (
+            <Link
+              to="/student/scholarships"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-xl font-semibold text-sm hover:opacity-90 transition-opacity shadow-sm shadow-purple-200"
+            >
+              <Sparkles size={15} />
+              Browse Scholarships
+            </Link>
+          ) : (
+            <button
+              onClick={() => { setSearch(''); setSortBy('newest'); setDateFrom(''); setDateTo(''); setTab('All'); }}
+              className="inline-flex items-center gap-2 bg-slate-100 text-slate-600 px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors"
+            >
+              <X size={14} /> Clear Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map(app => {
+            const statusStyle = STATUS_COLORS[app.status] || { border: 'border-l-slate-300', bg: '', dot: 'bg-slate-400', pulse: false }
+            const appliedDate = app.created_at ? new Date(app.created_at) : null
+            const timeAgo = appliedDate ? formatDistanceToNow(appliedDate, { addSuffix: true }) : null
+
+            return (
+              <div
+                key={app.id}
+                className={`card hover:shadow-md transition-all border-l-4 ${statusStyle.border} ${statusStyle.bg}`}
+              >
+                <div className="p-5">
+                  <div className="flex items-start gap-4">
+                    {/* Icon with status dot */}
+                    <div className="relative flex-shrink-0">
+                      <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 shadow-sm flex items-center justify-center">
+                        <FileText size={18} className="text-purple-600" />
+                      </div>
+                      {/* Animated status pulse dot */}
+                      <span
+                        className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${statusStyle.dot}`}
+                      >
+                        {statusStyle.pulse && (
+                          <span
+                            className={`absolute inset-0 rounded-full ${statusStyle.dot} opacity-75 animate-ping`}
+                          />
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <h3 className="font-bold text-slate-800 leading-snug">{app.scholarship_title}</h3>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {/* Days since applied */}
+                            <span className="text-xs text-slate-400">
+                              Applied <span className="font-medium text-slate-500">{timeAgo}</span>
+                              {appliedDate && (
+                                <span className="text-slate-300"> · {format(appliedDate, 'MMM d, yyyy')}</span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                          {app.funding_amount && (
+                            <span className="text-sm font-bold text-green-600 bg-green-50 px-2.5 py-0.5 rounded-full">
+                              LKR {Number(app.funding_amount).toLocaleString()}
+                            </span>
+                          )}
+                          <StatusBadge status={app.status} />
+                        </div>
+                      </div>
+
+                      {/* Admin note */}
+                      {app.admin_reason && (
+                        <div className="mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-700 flex items-start gap-1.5">
+                          <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+                          <span><span className="font-semibold">Admin note:</span> {app.admin_reason}</span>
+                        </div>
+                      )}
+
+                      {/* Student workflow actions */}
+                      {app.status === 'Resubmission Requested' && (
+                        <Link
+                          to={`/student/scholarships/${app.scholarship_id}`}
+                          className="mt-3 flex items-center justify-between gap-2 bg-orange-50 border border-orange-300 rounded-xl px-4 py-3 text-orange-700 text-xs font-semibold hover:bg-orange-100 transition-colors"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <RotateCcw size={13} />
+                            Admin requested changes. Review the note above and resubmit your application.
+                          </span>
+                          <span className="underline whitespace-nowrap flex-shrink-0">Resubmit Application →</span>
+                        </Link>
+                      )}
+                      {app.status === 'Awaiting Payment Details' && (
+                        <Link
+                          to={`/student/payment/${app.id}`}
+                          className="mt-3 flex items-center justify-between gap-2 bg-gradient-to-r from-purple-700 to-purple-500 rounded-xl px-4 py-3 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                        >
+                          <span>Your application passed the admin review. Submit your bank details.</span>
+                          <span className="underline whitespace-nowrap flex-shrink-0">Submit Details →</span>
+                        </Link>
+                      )}
+                      {app.status === 'Payment Correction Required' && (
+                        <Link
+                          to={`/student/payment/${app.id}`}
+                          className="mt-3 flex items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-700 text-xs font-semibold hover:bg-red-100 transition-colors"
+                        >
+                          <span>Your payment details require correction. Review the admin instructions and resubmit.</span>
+                          <span className="underline whitespace-nowrap flex-shrink-0">Correct Details →</span>
+                        </Link>
+                      )}
+                      {app.status === 'Payment Details Submitted' && (
+                        <Link
+                          to={`/student/payment/${app.id}`}
+                          className="mt-3 flex items-center justify-between gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                        >
+                          <span>Payment details submitted and waiting for admin verification.</span>
+                          <span className="underline whitespace-nowrap flex-shrink-0">View →</span>
+                        </Link>
+                      )}
+                      {app.status === 'Payment Details Verified' && (
+                        <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
+                          <CheckCircle size={14} />
+                          Payment details verified. Waiting for donor assignment.
+                        </div>
+                      )}
+                      {app.status === 'Assigned to Donor' && (
+                        <div className="mt-3 flex items-center justify-between gap-2 bg-purple-50 border border-purple-200 rounded-xl px-4 py-2.5 text-purple-700 text-xs font-semibold">
+                          <span>Your application has been assigned to the scholarship donor.</span>
+                          <span>Payment pending</span>
+                        </div>
+                      )}
+                      {app.status === 'Payment Processing' && (
+                        <div className="mt-3 flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-xs font-semibold">
+                          <Clock size={14} />
+                          Your scholarship payment is being processed.
+                        </div>
+                      )}
+                      {app.status === 'Completed' && (
+                        <div className="mt-3 flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 text-green-700 text-xs font-semibold">
+                          <CheckCircle size={14} />
+                          Scholarship payment completed successfully.
+                        </div>
+                      )}
+
+                      {/* ── Step Tracker (replaces old progress bar) */}
+                      <StepTracker status={app.status} />
+
+                      {/* Footer actions */}
+                      <div className="mt-4 pt-3 border-t border-slate-100/60 flex items-center justify-between">
+                        <button
+                          onClick={() => setSelectedApp(app)}
+                          className="flex items-center gap-1.5 text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors"
+                        >
+                          <Eye size={14} />
+                          View Application
+                        </button>
+                        <span className="text-[10px] text-slate-300 font-mono">#{app.id}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 

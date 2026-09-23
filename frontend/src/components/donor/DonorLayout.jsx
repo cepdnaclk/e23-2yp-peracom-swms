@@ -2,11 +2,12 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   LayoutDashboard, BookOpen, Users, Megaphone,
-  User, Bell, LogOut, Menu, X, CreditCard, AlertCircle
+  User, LogOut, Menu, X, CreditCard, AlertCircle
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { UPLogo } from '../common/UPLogo'
 import { Footer } from '../common/Footer'
+import { NotificationBell } from '../common/NotificationBell'
 
 const navLinks = [
   { to: '/donor/dashboard',     label: 'Dashboard',   icon: LayoutDashboard },
@@ -46,9 +47,7 @@ export default function DonorLayout() {
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            <button className="p-2 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">
-              <Bell size={18} />
-            </button>
+            <NotificationBell />
             <div className="relative">
               <button onClick={() => setDropdownOpen(!dropdownOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">

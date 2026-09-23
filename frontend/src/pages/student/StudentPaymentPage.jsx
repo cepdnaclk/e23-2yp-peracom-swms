@@ -244,6 +244,8 @@ export default function StudentPaymentPage() {
     if (!form.bank_name.trim())           e.bank_name           = 'Required'
     if (!form.account_number.trim())      e.account_number      = 'Required'
     if (!form.account_type)               e.account_type        = 'Required'
+    if (form.contact_number && !/^07\d{8}$/.test(form.contact_number))
+      e.contact_number = 'Must be a 10-digit number starting with 07'
     if (!payment?.passbook_url && !passbookFile) e.passbook = 'Bank passbook/account proof is required'
     setErrors(e)
     return Object.keys(e).length === 0
@@ -569,10 +571,11 @@ export default function StudentPaymentPage() {
                 </select>
               </Field>
 
-              <Field label="Contact Number">
-                <input type="tel" placeholder="e.g. 0771234567"
+              <Field label="Contact Number" error={errors.contact_number}>
+                <input type="tel" inputMode="numeric" placeholder="e.g. 0771234567"
+                  maxLength={10}
                   value={form.contact_number}
-                  onChange={e => setField('contact_number', e.target.value)}
+                  onChange={e => setField('contact_number', e.target.value.replace(/\D/g, '').slice(0, 10))}
                   className={inputClass('contact_number')}/>
               </Field>
             </div>

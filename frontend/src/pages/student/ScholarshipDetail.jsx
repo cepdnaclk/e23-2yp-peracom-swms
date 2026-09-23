@@ -447,7 +447,7 @@ function GuardianSection({ prefix, title, placeholder, data, onChange, errors, c
         <Field label="Occupation">
           <input type="text" placeholder="Occupation" {...f(`${prefix}_occupation`)} />
         </Field>
-        <Field label="Monthly Income (LKR)" error={errors[`${prefix}_income`]}>
+        <Field label="Monthly Income (LKR)" required error={errors[`${prefix}_income`]}>
           <div className="relative rounded-xl shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-slate-400 text-sm font-medium">LKR</span>
@@ -469,9 +469,11 @@ function GuardianSection({ prefix, title, placeholder, data, onChange, errors, c
           <input
             id={`${prefix}_contact`}
             type="tel"
+            inputMode="numeric"
+            maxLength={10}
             placeholder="0771234567"
             value={data[`${prefix}_contact`] || ''}
-            onChange={e => onChange(`${prefix}_contact`, e.target.value)}
+            onChange={e => onChange(`${prefix}_contact`, e.target.value.replace(/\D/g, '').slice(0, 10))}
             className={getContactClass()}
           />
         </Field>
@@ -945,7 +947,7 @@ useEffect(() => {
         // Auto-filled student account details
         full_name: profile.name || '',
         email: profile.email || '',
-        mobile: profile.phone || '',
+        mobile: (profile.phone || '').replace(/\D/g, ''),
         batch: profile.batch || '',
         registration_number: profile.registration_number || '',
         department: profile.department || '',
@@ -971,6 +973,7 @@ useEffect(() => {
 }, [])
 
   // Load existing application status for Payment Details unlock check
+  // and auto-fill form data if resubmission is requested
   useEffect(() => {
     api.get('/student/applications')
       .then(r => {
@@ -982,6 +985,46 @@ useEffect(() => {
           api.get(`/applications/${existing.id}/donor-decision`)
             .then(d => setDonorApproval(d.data?.donor_decision || null))
             .catch(() => { })
+
+          // If resubmission requested, load existing data and open wizard
+          if (existing.status === 'Resubmission Requested') {
+            const extra = typeof existing.extra_data === 'string'
+              ? JSON.parse(existing.extra_data)
+              : existing.extra_data || {}
+            setFormData(prev => ({
+              ...prev,
+              // Fields from the application row
+              current_year: existing.current_year || prev.current_year || '',
+              gpa: existing.gpa || prev.gpa || '',
+              total_family_income: existing.monthly_income || prev.total_family_income || '',
+              num_dependents: existing.num_dependents || prev.num_dependents || '',
+              // Fields from extra_data
+              postal_address: extra.postal_address || prev.postal_address || '',
+              district: extra.district || prev.district || '',
+              nic_number: extra.nic_number || prev.nic_number || '',
+              school_siblings: extra.school_siblings || prev.school_siblings || [],
+              uni_siblings: extra.uni_siblings || prev.uni_siblings || [],
+              father_name: extra.father_name || prev.father_name || '',
+              father_occupation: extra.father_occupation || prev.father_occupation || '',
+              father_income: extra.father_income || prev.father_income || '',
+              father_employer: extra.father_employer || prev.father_employer || '',
+              father_contact: extra.father_contact || prev.father_contact || '',
+              mother_name: extra.mother_name || prev.mother_name || '',
+              mother_occupation: extra.mother_occupation || prev.mother_occupation || '',
+              mother_income: extra.mother_income || prev.mother_income || '',
+              mother_employer: extra.mother_employer || prev.mother_employer || '',
+              mother_contact: extra.mother_contact || prev.mother_contact || '',
+              num_family_members: extra.num_family_members || prev.num_family_members || '',
+              school_children_count: extra.school_children_count || prev.school_children_count || '',
+              uni_students_count: extra.uni_students_count || prev.uni_students_count || '',
+              receiving_mahapola: extra.receiving_mahapola || prev.receiving_mahapola || '',
+              receiving_bursary: extra.receiving_bursary || prev.receiving_bursary || '',
+              other_scholarships: extra.other_scholarships || prev.other_scholarships || '',
+              other_scholarship_amount: extra.other_scholarship_amount || prev.other_scholarship_amount || '',
+              semester: extra.semester || prev.semester || '',
+            }))
+            setApplying(true)
+          }
         }
       })
       .catch(() => { })
@@ -1048,10 +1091,14 @@ useEffect(() => {
         e.total_family_income = 'Total monthly family income must be a positive value'
       }
 
-      if (formData.father_income && parseFloat(formData.father_income) < 0) {
+      if (!formData.father_income) {
+        e.father_income = 'Father / Guardian Monthly Income is required'
+      } else if (parseFloat(formData.father_income) < 0) {
         e.father_income = 'Father / Guardian Monthly Income must be a positive value'
       }
-      if (formData.mother_income && parseFloat(formData.mother_income) < 0) {
+      if (!formData.mother_income) {
+        e.mother_income = 'Mother / Guardian Monthly Income is required'
+      } else if (parseFloat(formData.mother_income) < 0) {
         e.mother_income = 'Mother / Guardian Monthly Income must be a positive value'
       }
       if (formData.other_scholarship_amount && parseFloat(formData.other_scholarship_amount) < 0) {

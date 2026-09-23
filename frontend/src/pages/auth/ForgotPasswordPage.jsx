@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { Mail, ArrowLeft } from 'lucide-react'
+import { Mail } from 'lucide-react'
 import { UPLogo } from '../../components/common/UPLogo'
 import api from '../../services/api'
 
@@ -20,8 +20,16 @@ export default function ForgotPasswordPage() {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-purple-100 to-purple-200 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+          <div>
+            <Link to="/" className="text-xs font-semibold text-purple-600 hover:text-purple-800 transition-colors">
+              ← Back to Home
+            </Link>
+          </div>
+
           <div className="text-center space-y-2">
-            <div className="flex justify-center"><UPLogo size="lg" /></div>
+            <Link to="/" className="inline-block hover:opacity-90 transition-opacity">
+              <div className="flex justify-center"><UPLogo size="lg" /></div>
+            </Link>
             <h1 className="text-xl font-bold text-slate-800">Forgot Password</h1>
           </div>
 
@@ -60,7 +68,7 @@ export default function ForgotPasswordPage() {
 
           <div className="text-center">
             <Link to="/login" className="inline-flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800">
-              <ArrowLeft size={14} /> Back to Login
+              ← Back to Login
             </Link>
           </div>
         </div>

@@ -319,8 +319,9 @@ const [paymentSubmitting, setPaymentSubmitting] = useState(false)
 
   const handleVerifyDoc = async (docId) => {
     await api.patch(`/applications/${id}/documents/${docId}/verify`).catch(() => {})
+    // Update doc status locally instead of reloading the whole page
+    setDocs(prev => prev.map(d => d.id === docId ? { ...d, status: 'Verified' } : d))
     toast.success('Document verified')
-    load()
   }
   const handleVerifyPayment = async () => {
   setPaymentSubmitting(true)

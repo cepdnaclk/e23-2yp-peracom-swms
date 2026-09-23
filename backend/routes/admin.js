@@ -1,9 +1,69 @@
 import express from 'express'
 import { query } from '../config/db.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
-import { getEmailProviderStatus } from '../services/emailService.js'
+import { getEmailProviderStatus, sendEmail } from '../services/emailService.js'
 
 const router = express.Router()
+
+// ─── Helper: broadcast announcement email to all audience members ────────────
+async function broadcastAnnouncementEmail(announcement) {
+  try {
+    const { title, content, audience } = announcement
+
+    // Determine role filter based on audience
+    let roleFilter = []
+    if (audience === 'Students') roleFilter = ['student']
+    else if (audience === 'Donors') roleFilter = ['donor']
+    else roleFilter = ['student', 'donor'] // 'All Users'
+
+    const usersResult = await query(
+      `SELECT name, email FROM users WHERE role = ANY($1) AND status = 'active' AND email IS NOT NULL AND email != ''`,
+      [roleFilter]
+    )
+
+    const users = usersResult.rows
+    if (!users.length) {
+      console.log(`📢 Announcement "${title}": no recipients found for audience "${audience}"`)
+      return
+    }
+
+    let sent = 0, failed = 0
+    for (const user of users) {
+      try {
+        await sendEmail({
+          recipientEmail: user.email,
+          emailType: 'Announcement',
+          subject: `📢 ${title}`,
+          body: `Dear ${user.name || 'User'},\n\n${content}\n\nThis announcement was sent by the University of Peradeniya Student Welfare Management System.\n\nPlease log in to the portal to view the full announcement.\n\nRegards,\nUniversity of Peradeniya\nStudent Welfare Management System`,
+          html: `
+            <!doctype html>
+            <html lang="en">
+              <body style="margin:0;padding:0;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;color:#1e293b;">
+                <div style="padding:32px 16px;">
+                  <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e9d5ff;border-radius:16px;padding:32px;box-sizing:border-box;">
+                    <div style="background:linear-gradient(135deg,#7c3aed,#9333ea);border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+                      <p style="margin:0;color:#ede9fe;font-size:13px;font-weight:600;letter-spacing:1px;">📢 ANNOUNCEMENT</p>
+                      <h1 style="margin:8px 0 0;color:#ffffff;font-size:20px;">${title}</h1>
+                    </div>
+                    <p style="margin:0 0 8px;color:#475569;font-size:14px;">Dear <strong>${user.name || 'User'}</strong>,</p>
+                    <div style="background:#f8f7ff;border-left:4px solid #7c3aed;border-radius:4px;padding:16px;margin:16px 0;font-size:14px;color:#334155;white-space:pre-line;">${content}</div>
+                    <p style="margin:16px 0 0;color:#64748b;font-size:12px;">This announcement was posted by the University of Peradeniya Student Welfare Management System.</p>
+                  </div>
+                </div>
+              </body>
+            </html>`
+        })
+        sent++
+      } catch (emailErr) {
+        console.error(`⚠️ Announcement email failed for ${user.email}:`, emailErr.message)
+        failed++
+      }
+    }
+    console.log(`📢 Announcement "${title}" emails: ${sent} sent, ${failed} failed (audience: ${audience})`)
+  } catch (err) {
+    console.error('⚠️ broadcastAnnouncementEmail error:', err.message)
+  }
+}
 
 // GET /api/admin/stats  — dashboard summary cards
 router.get('/stats', authenticate, requireAdmin, async (req, res) => {
@@ -280,10 +340,15 @@ router.put('/announcements/:id', authenticate, requireAdmin, async (req, res) =>
 // POST /api/admin/announcements/:id/publish
 router.post('/announcements/:id/publish', authenticate, requireAdmin, async (req, res) => {
   try {
-    await query(
+    const result = await query(
       `UPDATE announcements SET status = 'Published', publish_date = COALESCE(publish_date, NOW()), updated_at = NOW()
-       WHERE id = $1`, [req.params.id])
+       WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    )
+    if (!result.rows.length) return res.status(404).json({ message: 'Announcement not found' })
     res.json({ message: 'Published' })
+    // Broadcast email to audience (fire-and-forget, don't block the response)
+    broadcastAnnouncementEmail(result.rows[0])
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 

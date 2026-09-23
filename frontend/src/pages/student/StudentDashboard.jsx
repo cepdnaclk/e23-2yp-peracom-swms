@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   BookOpen, FileText, CheckCircle, BarChart2, ArrowRight,
-  CreditCard, Bell, AlertCircle, Lock, Unlock
+  CreditCard, AlertCircle, Unlock
 } from 'lucide-react'
 import { StatCard } from '../../components/common/StatCard'
 import { StatusBadge } from '../../components/common/StatusBadge'
@@ -10,87 +10,21 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
 import { format } from 'date-fns'
 
-// ── Notification banner
-function NotificationBanner({ notif, paymentAppId, onDismiss }) {
-  const config = {
-    payment_unlocked: {
-      bg: 'bg-green-50 border-green-200',
-      icon: Unlock,
-      iconColor: 'text-green-600',
-      titleColor: 'text-green-800',
-      textColor: 'text-green-700',
-    },
-    payment_resubmission: {
-      bg: 'bg-red-50 border-red-200',
-      icon: AlertCircle,
-      iconColor: 'text-red-500',
-      titleColor: 'text-red-800',
-      textColor: 'text-red-700',
-    },
-    payment_verified: {
-      bg: 'bg-purple-50 border-purple-200',
-      icon: CheckCircle,
-      iconColor: 'text-purple-600',
-      titleColor: 'text-purple-800',
-      textColor: 'text-purple-700',
-    },
-  }
-  const c = config[notif.type] || config.payment_unlocked
-  const Icon = c.icon
-
-  // Build the correct link: payment page if we have an app ID, else applications list
-  const paymentLink = paymentAppId
-    ? `/student/payment/${paymentAppId}`
-    : '/student/applications'
-
-  return (
-    <div className={`border rounded-xl p-4 flex items-start gap-3 ${c.bg}`}>
-      <Icon size={18} className={`${c.iconColor} flex-shrink-0 mt-0.5`} />
-      <div className="flex-1 min-w-0">
-        <p className={`font-semibold text-sm ${c.titleColor}`}>{notif.title}</p>
-        <p className={`text-xs mt-0.5 ${c.textColor}`}>{notif.message}</p>
-        <Link to={paymentLink}
-          className={`inline-flex items-center gap-1 text-xs font-semibold mt-2 hover:underline ${c.titleColor}`}>
-          {notif.type === 'payment_unlocked'
-            ? <><CreditCard size={12}/> Complete Payment Details</>
-            : notif.type === 'payment_resubmission'
-            ? <><AlertCircle size={12}/> Update Payment Details</>
-            : <><CheckCircle size={12}/> View Application</>
-          }
-          <ArrowRight size={12}/>
-        </Link>
-      </div>
-      <button onClick={() => onDismiss(notif.id)}
-        className="text-slate-400 hover:text-slate-600 text-xs flex-shrink-0 mt-0.5">✕</button>
-    </div>
-  )
-}
-
 export default function StudentDashboard() {
   const { user } = useAuth()
   const [stats, setStats]           = useState({})
   const [recentApps, setRecentApps] = useState([])
-  const [notifications, setNotifications] = useState([])
   const [loading, setLoading]       = useState(true)
 
   useEffect(() => {
     Promise.all([
       api.get('/student/stats').catch(() => ({ data: {} })),
       api.get('/student/applications?limit=5').catch(() => ({ data: [] })),
-      user?.id
-        ? api.get(`/payment/notifications/${user.id}`).catch(() => ({ data: [] }))
-        : Promise.resolve({ data: [] }),
-    ]).then(([s, a, n]) => {
+    ]).then(([s, a]) => {
       setStats(s.data)
       setRecentApps(a.data?.slice(0, 5) || [])
-      setNotifications((n.data || []).filter(notif => !notif.is_read))
     }).finally(() => setLoading(false))
   }, [user?.id])
-
-  const dismissNotification = async (id) => {
-    await api.post(`/payment/notifications/${id}/read`).catch(() => {})
-    setNotifications(prev => prev.filter(n => n.id !== id))
-  }
 
   const firstName = user?.name?.split(' ')[0] || 'Student'
 
@@ -118,19 +52,8 @@ export default function StudentDashboard() {
         <p className="text-purple-200 mt-1">Here's your scholarship overview.</p>
       </div>
 
-      {/* Unread notifications */}
-      {notifications.length > 0 && (
-        <div className="space-y-3">
-          {notifications.map(n => (
-            <NotificationBanner key={n.id} notif={n}
-              paymentAppId={fullyApprovedApp?.id}
-              onDismiss={dismissNotification}/>
-          ))}
-        </div>
-      )}
-
       {/* Payment action banner — shown when Fully Approved */}
-      {hasPaymentPending && notifications.length === 0 && (
+      {hasPaymentPending && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
           <Unlock size={18} className="text-green-600 flex-shrink-0 mt-0.5"/>
           <div className="flex-1">

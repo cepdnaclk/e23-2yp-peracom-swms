@@ -2,12 +2,13 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   LayoutDashboard, GraduationCap, FileText, Users, Heart,
-  AlertCircle, Megaphone, UserCheck, Bell, ChevronDown,
+  AlertCircle, Megaphone, UserCheck, ChevronDown,
   LogOut, Menu, X
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { UPLogo } from '../common/UPLogo'
 import { Footer } from '../common/Footer'
+import { NotificationBell } from '../common/NotificationBell'
 
 const navLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -59,9 +60,7 @@ export default function AdminLayout() {
             <NavLink to="/user-approval" className="p-2 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">
               <UserCheck size={18} />
             </NavLink>
-            <button className="p-2 rounded-lg text-slate-500 hover:text-purple-600 hover:bg-purple-50 transition-colors">
-              <Bell size={18} />
-            </button>
+            <NotificationBell />
 
             {/* User dropdown */}
             <div className="relative">

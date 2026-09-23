@@ -3,7 +3,7 @@ import dotenv from 'dotenv'
 dotenv.config()
 
 const supabaseUrl = process.env.SUPABASE_URL?.trim()
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY?.trim()
+const supabaseServiceKey = (process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY)?.trim()
 
 const supabase = supabaseUrl && supabaseServiceKey
   ? createClient(supabaseUrl, supabaseServiceKey, { auth: { persistSession: false } })
@@ -11,6 +11,8 @@ const supabase = supabaseUrl && supabaseServiceKey
 
 if (!supabase) {
   console.warn('⚠️ Supabase storage is disabled. Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable uploads.')
+} else {
+  console.log('✅ Supabase storage client initialized successfully.')
 }
 
 export const uploadFile = async (bucket, path, buffer, mimetype) => {

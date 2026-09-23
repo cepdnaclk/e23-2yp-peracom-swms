@@ -23,13 +23,13 @@ function Navbar() {
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'bg-white shadow-md' : 'bg-white/95 backdrop-blur-sm'} border-b border-slate-100`}>
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-6">
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <Link to="/" className="flex items-center gap-3 flex-shrink-0 hover:opacity-90 transition-opacity">
           <UPLogo size="sm" />
           <div className="hidden sm:block">
             <p className="text-sm font-bold text-purple-700 leading-tight">University of Peradeniya</p>
             <p className="text-xs text-slate-400 leading-tight">Faculty of Engineering · Department of Computer Engineering</p>
           </div>
-        </div>
+        </Link>
 
         <div className="hidden md:flex items-center gap-6 flex-1 justify-center">
           {links.map(l => (

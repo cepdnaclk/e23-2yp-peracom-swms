@@ -8,8 +8,26 @@ import {
 } from '../middleware/auth.js'
 import { upload } from '../middleware/upload.js'
 import { uploadFile } from '../config/supabase.js'
+import { sendEmail } from '../services/emailService.js'
+
+async function sendStudentNotificationEmail(studentId, title, message, emailType = 'Payment_Notification') {
+  try {
+    const userRes = await query('SELECT name, email FROM users WHERE id = $1', [studentId])
+    const student = userRes.rows[0]
+    if (!student?.email) return
+    await sendEmail({
+      recipientEmail: student.email,
+      emailType,
+      subject: title,
+      body: `Dear ${student.name || 'Student'},\n\n${message}\n\nPlease log in to the Student Welfare Management System portal to view details.\n\nRegards,\nUniversity of Peradeniya\nStudent Welfare Management System`
+    })
+  } catch (err) {
+    console.error('⚠️ Failed to send student payment notification email:', err?.message)
+  }
+}
 
 const router = express.Router()
+
 
 // Student may edit bank details only in these states.
 const STUDENT_EDITABLE_STATUSES = [
@@ -821,6 +839,13 @@ router.post(
         [paymentDetails.student_id]
       )
 
+      sendStudentNotificationEmail(
+        paymentDetails.student_id,
+        'Payment Details Verified',
+        'Your bank details were verified by the admin. Your application is now ready for donor assignment.',
+        'Payment_Verified'
+      )
+
       return res.json({
         message:
           'Payment details verified successfully',
@@ -961,6 +986,13 @@ router.post(
           paymentDetails.student_id,
           `/student/payment/${application_id}`,
         ]
+      )
+
+      sendStudentNotificationEmail(
+        paymentDetails.student_id,
+        'Payment Details Require Correction',
+        'The admin requested corrections to your bank details. Please review the instructions and submit the updated information.',
+        'Payment_Correction_Required'
       )
 
       return res.json({

@@ -29,7 +29,7 @@ export default function StudentProfile() {
 
         setForm({
           name: profileResponse.data.name || '',
-          phone: profileResponse.data.phone || '',
+          phone: (profileResponse.data.phone || '').replace(/\D/g, '').slice(0, 10),
         })
 
         setApps(applicationsResponse.data)
