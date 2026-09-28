@@ -1,32 +1,38 @@
 {
+    "title": "PeraCom Student Welfare Management System",
     "team": [
         {
-            "name": "Team Member Name 1",
-            "email": "email@eng.pdn.ac.lk",
-            "eNumber": "E/yy/xxx"
+            "name": "V. Birunthan",
+            "email": "e23040@eng.pdn.ac.lk",
+            "eNumber": "E/23/040"
         },
         {
-            "name": "Team Member Name 2",
-            "email": "email@eng.pdn.ac.lk",
-            "eNumber": "E/yy/xxx"
+            "name": "J. Dinushan",
+            "email": "e23078@eng.pdn.ac.lk",
+            "eNumber": "E/23/078"
         },
         {
-            "name": "Team Member Name 3",
-            "email": "email@eng.pdn.ac.lk",
-            "eNumber": "E/yy/xxx"
+            "name": "B. Nilaxshan",
+            "email": "e23245@eng.pdn.ac.lk",
+            "eNumber": "E/23/245"
+        },
+        {
+            "name": "K. Srikaran",
+            "email": "e23387@eng.pdn.ac.lk",
+            "eNumber": "E/23/387"
         }
     ],
     "supervisors": [
         {
-            "name": "Dr. Supervisor 1",
-            "email": "email@eng.pdn.ac.lk"
-        },
-        {
-            "name": "Supervisor 2",
-            "email": "email@eng.pdn.ac.lk"
+            "name": "Dr. Yasodha Vimukthi",
+            "email": "yasodhav@eng.pdn.ac.lk"
         }
     ],
-    "tags": ["Web", "Software Systems", "CO2060"],
-    "image":"cover_page.jpg",
-    "thumbnail":"thumbnail.jpg"
+    "tags": [
+        "Web",
+        "Software Systems",
+        "CO2060"
+    ],
+    "image": "cover_page.jpg",
+    "thumbnail": "thumbnail.jpg"
 }
