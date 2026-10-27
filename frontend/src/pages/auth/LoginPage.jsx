@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
 import { Eye, EyeOff } from 'lucide-react'
@@ -9,10 +9,21 @@ import { UPLogo } from '../../components/common/UPLogo'
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm()
+  const [searchParams] = useSearchParams()
+  const isStudentLogin = searchParams.get('role') === 'student'
+  const studentEmailRegex = /^e\d{5}@eng\.pdn\.ac\.lk$/
+  const { register, handleSubmit, setError, formState: { errors, isSubmitting } } = useForm()
   const [showPass, setShowPass] = useState(false)
 
   const onSubmit = async (data) => {
+    if (isStudentLogin && !studentEmailRegex.test(data.email.trim())) {
+      setError('email', {
+        type: 'manual',
+        message: 'Enter your university email in the format e23245@eng.pdn.ac.lk'
+      })
+      return
+    }
+
     try {
       const user = await login(data.email, data.password)
       if (user.status === 'pending_approval') {
@@ -59,8 +70,18 @@ export default function LoginPage() {
               <label className="block text-xs font-semibold text-slate-600 mb-1.5">Email Address</label>
               <input
                 type="email"
-                {...register('email', { required: 'Email is required' })}
-                placeholder="Enter your email"
+                {...register('email', {
+                  required: 'Email is required',
+                  ...(isStudentLogin && {
+                    pattern: {
+                      value: studentEmailRegex,
+                      message: 'Enter your university email in the format e23245@eng.pdn.ac.lk'
+                    }
+                  })
+                })}
+                placeholder={isStudentLogin ? 'e.g. e23245@eng.pdn.ac.lk' : 'Enter your email'}
+                pattern={isStudentLogin ? 'e[0-9]{5}@eng\\.pdn\\.ac\\.lk' : undefined}
+                title={isStudentLogin ? 'Enter your university email, e.g. e23245@eng.pdn.ac.lk' : undefined}
                 className="input-field"
               />
               {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}

@@ -6,6 +6,8 @@ import { Eye, EyeOff } from 'lucide-react'
 import { UPLogo } from '../../components/common/UPLogo'
 import api from '../../services/api'
 
+const studentEmailRegex = /^e\d{5}@eng\.pdn\.ac\.lk$/
+
 export default function StudentRegisterPage() {
   const navigate = useNavigate()
   const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm()
@@ -32,7 +34,7 @@ useEffect(() => {
     try {
       await api.post('/auth/register/student', data)
       toast.success('Registered! Please verify your email and wait for admin approval.')
-      navigate('/login')
+      navigate('/login?role=student')
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Registration failed')
     }
@@ -69,7 +71,19 @@ useEffect(() => {
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Field name="name" label="Full Name *" rules={{ required: 'Full name is required' }} />
-            <Field name="email" label="Email Address *" type="email" rules={{ required: 'Email is required' }} />
+            <Field
+              name="email"
+              label="Email Address *"
+              type="email"
+              placeholder="e.g. e23245@eng.pdn.ac.lk"
+              rules={{
+                required: 'Email is required',
+                pattern: {
+                  value: studentEmailRegex,
+                  message: 'Enter your university email in the format e23245@eng.pdn.ac.lk'
+                }
+              }}
+            />
            <div>
   <label className="block text-xs font-semibold text-slate-600 mb-1.5">
     Phone Number *
@@ -222,7 +236,7 @@ useEffect(() => {
           </form>
 
           <div className="text-center">
-            <Link to="/login" className="text-sm text-purple-600 hover:text-purple-800">
+            <Link to="/login?role=student" className="text-sm text-purple-600 hover:text-purple-800">
               Already have an account? Sign In
             </Link>
           </div>

@@ -360,6 +360,18 @@ router.post('/register/student', async (req, res) => {
   })
 }
 
+    const studentEmailPattern = /^e\d{5}@eng\.pdn\.ac\.lk$/
+    const trimmedEmail = email.trim()
+
+    if (!studentEmailPattern.test(trimmedEmail)) {
+      return res.status(400).json({
+        message:
+          'Student email must be in the format e23245@eng.pdn.ac.lk'
+      })
+    }
+
+    const normalizedEmail = trimmedEmail.toLowerCase()
+
     // Validate Sri Lankan mobile number
     const sriLankanPhonePattern = /^07\d{8}$/
 
@@ -400,8 +412,6 @@ if (
         message: 'Please select a valid active batch'
       })
     }
-
-    const normalizedEmail = email.toLowerCase().trim()
 
     // Check duplicate email
     const exists = await query(
