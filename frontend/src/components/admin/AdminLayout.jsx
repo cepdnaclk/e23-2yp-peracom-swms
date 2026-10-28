@@ -16,6 +16,7 @@ const navLinks = [
   { to: '/applications', label: 'Applications', icon: FileText },
   { to: '/students', label: 'Students', icon: Users },
   { to: '/donors', label: 'Donors', icon: Heart },
+  { to: '/communication-approvals', label: 'Communications', icon: Megaphone },
   { to: '/issues', label: 'Issues', icon: AlertCircle },
 ]
 

@@ -26,6 +26,7 @@ import DonorDetailPage from './pages/admin/DonorDetailPage'
 import AnnouncementsPage from './pages/admin/AnnouncementsPage'
 import IssuesPage from './pages/admin/IssuesPage'
 import UserApprovalPage from './pages/admin/UserApprovalPage'
+import ScholarshipCommunicationPage from './pages/admin/ScholarshipCommunicationPage'
 
 // Student Pages
 import StudentLayout from './components/student/StudentLayout'
@@ -103,6 +104,9 @@ function AppRoutes() {
       </Route>
       <Route path="/user-approval" element={<ProtectedRoute role="admin"><AdminLayout /></ProtectedRoute>}>
         <Route index element={<UserApprovalPage />} />
+      </Route>
+      <Route path="/communication-approvals" element={<ProtectedRoute role="admin"><AdminLayout /></ProtectedRoute>}>
+        <Route index element={<ScholarshipCommunicationPage />} />
       </Route>
 
       {/* Student */}

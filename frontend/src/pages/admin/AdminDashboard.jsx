@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, Clock, AlertCircle, GraduationCap, ArrowRight } from 'lucide-react'
+import { FileText, Clock, AlertCircle, GraduationCap, ArrowRight, Mail } from 'lucide-react'
 import { StatCard } from '../../components/common/StatCard'
 import { StatusBadge } from '../../components/common/StatusBadge'
 import api from '../../services/api'
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const quickActions = [
     { label: 'Review Applications', to: '/applications', color: 'bg-purple-600 hover:bg-purple-700' },
     { label: 'Manage Scholarships', to: '/scholarships', color: 'bg-blue-600 hover:bg-blue-700' },
+    { label: 'Review Communications', to: '/communication-approvals', color: 'bg-violet-600 hover:bg-violet-700' },
     { label: 'Manage Issues', to: '/issues', color: 'bg-red-500 hover:bg-red-600' },
     { label: 'Create Announcement', to: '/announcements', color: 'bg-green-600 hover:bg-green-700' },
   ]
@@ -46,11 +47,12 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard title="Pending Applications" value={stats.pending_applications ?? 0} icon={FileText} color="amber" />
         <StatCard title="Pending Doc. Verifications" value={stats.pending_docs ?? 0} icon={Clock} color="blue" />
         <StatCard title="Reported Issues" value={stats.open_issues ?? 0} icon={AlertCircle} color="red" />
         <StatCard title="Active Scholarships" value={stats.active_scholarships ?? 0} icon={GraduationCap} color="green" />
+        <StatCard title="Pending Communications" value={stats.pending_communications ?? 0} icon={Mail} color="violet" />
       </div>
 
       {/* Quick Actions */}

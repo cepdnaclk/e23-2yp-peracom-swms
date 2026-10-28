@@ -68,17 +68,19 @@ async function broadcastAnnouncementEmail(announcement) {
 // GET /api/admin/stats  — dashboard summary cards
 router.get('/stats', authenticate, requireAdmin, async (req, res) => {
   try {
-    const [pending_apps, pending_docs, open_issues, active_scholarships] = await Promise.all([
+    const [pending_apps, pending_docs, open_issues, active_scholarships, pending_communications] = await Promise.all([
       query(`SELECT COUNT(*) FROM applications WHERE status = 'Pending'`),
       query(`SELECT COUNT(*) FROM application_documents WHERE status = 'Submitted'`),
       query(`SELECT COUNT(*) FROM issues WHERE status = 'Open'`),
       query(`SELECT COUNT(*) FROM scholarships WHERE status = 'Active'`),
+      query(`SELECT COUNT(*) FROM scholarship_notifications WHERE status = 'pending'`).catch(() => ({ rows: [{ count: 0 }] })),
     ])
     res.json({
       pending_applications: parseInt(pending_apps.rows[0].count),
       pending_docs: parseInt(pending_docs.rows[0].count),
       open_issues: parseInt(open_issues.rows[0].count),
       active_scholarships: parseInt(active_scholarships.rows[0].count),
+      pending_communications: parseInt(pending_communications.rows[0].count || 0),
     })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
@@ -357,6 +359,194 @@ router.delete('/announcements/:id', authenticate, requireAdmin, async (req, res)
   try {
     await query(`DELETE FROM announcements WHERE id = $1`, [req.params.id])
     res.json({ message: 'Deleted' })
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// GET /api/admin/scholarship-notification-options
+router.get('/scholarship-notification-options', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT
+        a.id AS application_id,
+        s.id AS scholarship_id,
+        s.title AS scholarship_title,
+        s.funding_amount,
+        student.id AS student_id,
+        student.name AS student_name,
+        student.email AS student_email,
+        donor.id AS donor_id,
+        donor.name AS donor_name,
+        donor.email AS donor_email
+      FROM applications a
+      JOIN scholarships s ON s.id = a.scholarship_id
+      JOIN users student ON student.id = a.student_id
+      JOIN users donor ON donor.id = s.donor_id
+      WHERE a.status = 'Approved'
+      ORDER BY a.created_at DESC
+    `)
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// GET /api/admin/scholarship-notifications
+router.get('/scholarship-notifications', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { status } = req.query
+    let queryText = `
+      SELECT n.*,
+             s.title AS scholarship_title,
+             st.name AS student_name,
+             st.email AS student_email,
+             d.name AS donor_name,
+             d.email AS donor_email
+      FROM scholarship_notifications n
+      JOIN scholarships s ON s.id = n.scholarship_id
+      JOIN users st ON st.id = n.student_id
+      JOIN users d ON d.id = n.donor_id
+    `
+
+    const params = []
+    if (status) {
+      queryText += ` WHERE n.status = $1 `
+      params.push(status)
+    }
+
+    queryText += ` ORDER BY n.created_at DESC`
+
+    const result = await query(queryText, params)
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// POST /api/admin/scholarship-notifications
+router.post('/scholarship-notifications', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { scholarshipId, studentId, donorId, subject, message } = req.body
+
+    if (!scholarshipId || !studentId || !donorId || !subject || !message) {
+      return res.status(400).json({ message: 'Scholarship, student, donor, subject, and message are required.' })
+    }
+
+    const scholarshipResult = await query(
+      `SELECT id, title FROM scholarships WHERE id = $1`,
+      [scholarshipId]
+    )
+
+    if (!scholarshipResult.rows.length) {
+      return res.status(404).json({ message: 'Scholarship not found' })
+    }
+
+    const studentResult = await query(
+      `SELECT id, name, email FROM users WHERE id = $1 AND role = 'student'`,
+      [studentId]
+    )
+
+    if (!studentResult.rows.length) {
+      return res.status(404).json({ message: 'Student not found' })
+    }
+
+    const donorResult = await query(
+      `SELECT id, name, email FROM users WHERE id = $1 AND role = 'donor'`,
+      [donorId]
+    )
+
+    if (!donorResult.rows.length) {
+      return res.status(404).json({ message: 'Donor not found' })
+    }
+
+    const notificationResult = await query(
+      `INSERT INTO scholarship_notifications (
+         scholarship_id, student_id, donor_id, admin_id, subject, message, status, created_by, approved_by, updated_at
+       ) VALUES ($1, $2, $3, $4, $5, $6, 'pending', $4, NULL, NOW())
+       RETURNING *`,
+      [scholarshipId, studentId, donorId, req.user.id, subject, message]
+    )
+
+    res.status(201).json(notificationResult.rows[0])
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// POST /api/admin/scholarship-notifications/:id/send
+router.post('/scholarship-notifications/:id/send', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const notificationResult = await query(
+      `SELECT n.*, s.title AS scholarship_title, st.name AS student_name, st.email AS student_email, d.name AS donor_name, d.email AS donor_email
+       FROM scholarship_notifications n
+       JOIN scholarships s ON s.id = n.scholarship_id
+       JOIN users st ON st.id = n.student_id
+       JOIN users d ON d.id = n.donor_id
+       WHERE n.id = $1`,
+      [req.params.id]
+    )
+
+    if (!notificationResult.rows.length) {
+      return res.status(404).json({ message: 'Notification not found' })
+    }
+
+    const notification = notificationResult.rows[0]
+
+    try {
+      await sendEmail({
+        recipientEmail: notification.student_email,
+        subject: notification.subject,
+        body: notification.message,
+        emailType: 'Scholarship_Student_Communication'
+      })
+
+      await sendEmail({
+        recipientEmail: notification.donor_email,
+        subject: notification.subject,
+        body: notification.message,
+        emailType: 'Scholarship_Donor_Communication'
+      })
+
+      const updated = await query(
+        `UPDATE scholarship_notifications
+         SET status = 'sent',
+             approved_by = $1,
+             approved_at = NOW(),
+             sent_by = $1,
+             sent_at = NOW(),
+             updated_at = NOW()
+         WHERE id = $2
+         RETURNING *`,
+        [req.user.id, req.params.id]
+      )
+
+      res.json({ message: 'Notification approved and sent', notification: updated.rows[0] })
+    } catch (emailErr) {
+      await query(
+        `UPDATE scholarship_notifications
+         SET status = 'failed',
+             updated_at = NOW()
+         WHERE id = $1`,
+        [req.params.id]
+      )
+      return res.status(500).json({ message: 'Email delivery failed', error: emailErr.message })
+    }
+  } catch (err) { res.status(500).json({ message: err.message }) }
+})
+
+// POST /api/admin/scholarship-notifications/:id/reject
+router.post('/scholarship-notifications/:id/reject', authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { reason } = req.body
+    const result = await query(
+      `UPDATE scholarship_notifications
+       SET status = 'rejected',
+           rejected_at = NOW(),
+           rejection_reason = $1,
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
+      [reason || 'No reason provided', req.params.id]
+    )
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: 'Notification not found' })
+    }
+
+    res.json({ message: 'Notification rejected', notification: result.rows[0] })
   } catch (err) { res.status(500).json({ message: err.message }) }
 })
 

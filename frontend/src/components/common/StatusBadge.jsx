@@ -2,6 +2,11 @@ export function StatusBadge({ status }) {
   const map = {
     // Application/General
     Pending:                  'badge-amber',
+    pending:                  'badge-amber',
+    approved:                 'badge-green',
+    sent:                     'badge-blue',
+    failed:                  'badge-red',
+    rejected:                'badge-red',
     Approved:                 'badge-green',
     Rejected:                 'badge-red',
     'Resubmission Requested': 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700',
@@ -11,8 +16,6 @@ export function StatusBadge({ status }) {
     Draft:                    'badge-amber',
     // User
     pending_approval:         'badge-amber',
-    approved:                 'badge-green',
-    rejected:                 'badge-red',
     suspended:                'badge-red',
     // Issues
     Open:                     'badge-red',
