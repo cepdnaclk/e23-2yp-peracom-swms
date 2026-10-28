@@ -8,6 +8,7 @@ import studentRoutes from './routes/student.js'
 import donorRoutes from './routes/donor.js'
 import adminRoutes from './routes/admin.js'
 import paymentRoutes from './routes/payment.js'
+import { sendProgressReportReminders } from './services/progressReminderService.js'
 
 dotenv.config() 
 
@@ -39,4 +40,16 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 5000
-app.listen(PORT, () => console.log(`🚀 PSWMS API running on port ${PORT}`))
+const REMINDER_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+
+const runProgressReportReminders = () => {
+  sendProgressReportReminders().catch((err) => {
+    console.error('Progress report reminder job failed:', err)
+  })
+}
+
+app.listen(PORT, () => {
+  console.log(`🚀 PSWMS API running on port ${PORT}`)
+  runProgressReportReminders()
+  setInterval(runProgressReportReminders, REMINDER_CHECK_INTERVAL_MS)
+})
